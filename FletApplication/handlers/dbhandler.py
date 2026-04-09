@@ -166,17 +166,16 @@ def get_attendance_log():
         return False
 
 
-# fetch ALL ENTRIES class list
+# fetch ALL ENTRIES for class list
 def get_class_list():
     try:
         conn = get_connection()
         curs = conn.cursor()
 
         sql = """
-            SELECT DISTINCT a.date, a.class_start, a.subject_id
-            FROM tbl_attendance a
-            JOIN tbl_subject sj ON a.subject_id = sj.subject_id
-            WHERE a.attendance_status NOT IN ('Absent')
+            SELECT DISTINCT a.date, a.class_start, a.subject_id, i.instructor_name
+            FROM tbl_attendance a, tbl_subjects_enrolled se
+            JOIN tbl_instructor i ON i.instructor_id = se.instructor_id 
         """
         
         curs.execute(sql)

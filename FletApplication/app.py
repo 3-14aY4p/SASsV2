@@ -1,7 +1,7 @@
 # Module/Library imports
 import flet as ft
 import threading
-from datetime import datetime
+from datetime import datetime, time, date
 
 # Custom files for handling
 import handlers.dbhandler as db
@@ -29,7 +29,7 @@ def main(page: ft.Page):
     )
     video_container = ft.Container(
         # content = camera_preview,
-        margin = ft.Margin(20, 20, 20, 60),
+        margin = ft.Margin(0, 0, 0, 60),
         bgcolor = ft.Colors.SURFACE_CONTAINER,
         border_radius = 30,
         width = 760,
@@ -57,7 +57,7 @@ def main(page: ft.Page):
     )
     dt_classes = ft.DataTable(
         align = ft.Alignment.CENTER,
-        width = WIDTH,
+        width = 860,
         expand = True,
         border = ft.Border.all(2, ft.Colors.SURFACE_BRIGHT),
         horizontal_lines = ft.border.BorderSide(1, ft.Colors.SURFACE_BRIGHT),
@@ -78,16 +78,11 @@ def main(page: ft.Page):
         
         cols, rows = db.get_attendance_log()
         for row in rows:
-            if row['date']:
-                date = str(row['date'])
-            if row['time']:
-                time = str(row['time'])
-            
             dt_attendance.rows.append(
                 ft.DataRow(
                     cells = [
-                        ft.DataCell(ft.Text(date)),
-                        ft.DataCell(ft.Text(time)),
+                        ft.DataCell(ft.Text(str(row['date']))),
+                        ft.DataCell(ft.Text(str(row['time']))),
                         ft.DataCell(ft.Text(row['student_name'])),
                         ft.DataCell(ft.Text(row['attendance_status'])),
                     ]
@@ -96,16 +91,69 @@ def main(page: ft.Page):
         
         page.update()
     
+    # No filter applied
     def update_class_list():
-        pass
+        dt_classes.rows.clear()
+        
+        cols, rows = db.get_class_list()
+        for row in rows:
+            dt_classes.rows.append(
+                ft.DataRow(
+                    cells = [
+                        ft.DataCell(ft.Text(str(row['date']))),
+                        ft.DataCell(ft.Text(str(row['class_start']))),
+                        ft.DataCell(ft.Text(row['subject_id'])),
+                        ft.DataCell(ft.Text(row['instructor_name'])),
+                    ]
+                )
+            )
+        
+        page.update()
     
+    
+    # Convert strings into datetime objects
+    def convert_time(time_str: str) -> time:
+        format = "%H:%M"
+        time = datetime.strptime(time_str, format).time()
+
+        return time
+    
+    def convert_time(date_str: str) -> date:
+        format = "%Y/%m/%d"
+        date = datetime.strptime(date_str, format).date()
+
+        return date
+    
+    
+    # For dropdown options
+    subject_options = [
+        ft.DropdownOption(text = 'ICT-111'),
+        ft.DropdownOption(text = 'ICT-107'),
+        ft.DropdownOption(text = 'ICT-114'),
+        ft.DropdownOption(text = 'CS-101'),
+        ft.DropdownOption(text = 'ICT-110'),
+        ft.DropdownOption(text = 'ICT-112'),
+        ft.DropdownOption(text = 'PE-4'),
+        ft.DropdownOption(text = 'GE-ELEC-1'),
+    ]
+    instructor_options = [
+        ft.DropdownOption(text = 'Mr. C.L. Gimeno'),
+        ft.DropdownOption(text = 'Mr. E.A. Centina'),
+        ft.DropdownOption(text = 'Mrs. M.F. Franco'),
+        ft.DropdownOption(text = 'Mrs. J. Calfoforo'),
+        ft.DropdownOption(text = 'Mr. L. Barrios'),
+        ft.DropdownOption(text = 'Ms. M. Escriba'),
+        ft.DropdownOption(text = 'Prof. J. Marfil'),
+        ft.DropdownOption(text = 'Dr. R.A. Torres'),
+    ]
+
+
 
     # ID Scanner page
     page_1 = ft.Container(
         ft.Row([
             video_container,
             ft.Container(
-                margin = 20,
                 width = 410,
                 height = 580,
                 content = ft.Container(
@@ -144,7 +192,7 @@ def main(page: ft.Page):
                     ], spacing = 20)
                 )
             )
-        ],)
+        ], spacing = 30, vertical_alignment = ft.CrossAxisAlignment.START,), margin = 30
     )
 
     # Attendance Log page
@@ -160,12 +208,76 @@ def main(page: ft.Page):
                     bgcolor = ft.Colors.SURFACE_CONTAINER,
                     border_radius = 30,
                     width = 330,
-                    height = 350,
-                    content = ft.Column(
-                        
-                    )
+                    height = 360,
+                    content = ft.Column([
+                        ft.Row([
+                            ft.Text(value = "FILTERS",
+                            style = ft.TextStyle(
+                                weight = ft.FontWeight.BOLD,
+                                size = 20,
+                                color = ft.Colors.ON_SURFACE_VARIANT
+                            )),
+                            ft.IconButton(
+                                icon = ft.Icons.RESTART_ALT
+                            )
+                        ], spacing = 180),
+                        ft.Row([
+                            ft.TextField(
+                                border_color = ft.Colors.SURFACE_BRIGHT,
+                                width = 140,
+                                height = 50,
+                                border_radius = 10,
+                                label = ft.Text("Date"),
+                                hint_text = "yyyy/mm/dd",
+                            ),
+                            ft.TextField(
+                                border_color = ft.Colors.SURFACE_BRIGHT,
+                                width = 140,
+                                height = 50,
+                                border_radius = 10,
+                                label = ft.Text("Time"),
+                                hint_text = "00:00",
+                            ),
+                        ]),
+                        ft.Container(
+                            width = 290,
+                            height = 50,
+                            content = ft.Dropdown(
+                                expand = True,
+                                bgcolor = ft.Colors.SURFACE_CONTAINER_HIGH,
+                                border_color = ft.Colors.SURFACE_BRIGHT,
+                                label = ft.Text("Subject"),
+                                options = subject_options,
+                            )
+                        ),
+                        ft.Container(
+                            width = 290,
+                            height = 50,
+                            content = ft.Dropdown(
+                                expand = True,
+                                bgcolor = ft.Colors.SURFACE_CONTAINER_HIGH,
+                                border_color = ft.Colors.SURFACE_BRIGHT,
+                                label = ft.Text("Instructor"),
+                                options = instructor_options,
+                            )
+                        ),
+                        ft.Button(
+                            bgcolor = ft.Colors.SURFACE_CONTAINER_HIGH,
+                            width = 290,
+                            height = 50,
+                            content = ft.Text("CONFIRM"),
+                        ),], margin = 20, spacing = 20,
+                    ), 
                 ),
-                dt_classes
+                ft.Column([
+                    ft.Button(
+                        bgcolor = ft.Colors.SURFACE_CONTAINER_HIGH,
+                        width = 250,
+                        height = 40,
+                        content = ft.Text("NEW ATTENDANCE SHEET"),
+                    ),
+                    dt_classes
+                ], spacing = 20,)
             ], 
             vertical_alignment = ft.CrossAxisAlignment.START,
             margin = 20, 
@@ -179,6 +291,7 @@ def main(page: ft.Page):
     # Page Container
     current_page = ft.Container(content = page_1)
 
+
     # Navigation buttons
     def set_page(e):
         i = e.control.selected_index
@@ -187,9 +300,10 @@ def main(page: ft.Page):
             current_page.content = page_1
         elif i == 1:
             current_page.content = page_2
-            update_attendance_log() # TODO: Transfer this function to be ran after each scan
+            update_attendance_log()             # TODO: Transfer this function to be triggered after each scan
         elif i == 2:
             current_page.content = page_3
+            update_class_list()                 # TODO: Transfer this function to be triggered after each new class
         elif i == 3:
             current_page.content = page_4
         page.update()
@@ -213,6 +327,7 @@ def main(page: ft.Page):
         ),],
         on_change = set_page,
         selected_index = 0,
+        bgcolor = ft.Colors.SURFACE_CONTAINER_HIGH
     )
     # page.navigation_bar = navbar
 
@@ -220,7 +335,9 @@ def main(page: ft.Page):
         navbar,
 
         # Changeable content
-        current_page
+        ft.SafeArea(
+            current_page
+        )
     )
     
     page.update()
