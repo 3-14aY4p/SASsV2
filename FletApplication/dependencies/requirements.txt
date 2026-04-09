@@ -1,0 +1,4 @@
+flet
+opencv-contrib-python
+pytesseract
+mysql-connector-python

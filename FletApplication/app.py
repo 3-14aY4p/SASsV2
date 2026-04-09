@@ -1,18 +1,18 @@
 # Module/Library imports
-from flet import MainAxisAlignment
-from flet import *
+import flet as ft
 import threading
+from datetime import datetime
 
 # Custom files for handling
 import handlers.dbhandler as db
 import handlers.cvhandler as cv
 
 
-# Main structure; We gotta put it all here!!
-def main(page: Page):
+#* Main structure; We gotta put it all here!!
+def main(page: ft.Page):
     # Page settings
     page.title = "SASs: Smart Attendance System"
-    page.theme_mode = ThemeMode.DARK
+    page.theme_mode = ft.ThemeMode.DARK
     
     WIDTH, HEIGHT = 1280, 720
 
@@ -21,135 +21,205 @@ def main(page: Page):
     page.window.height = HEIGHT
 
 
-    # Camera Vision stuff; still broken
+    # FIXME: Camera Vision stuff; still broken
     frame_bytes = None
-    camera_preview = Image(
+    camera_preview = ft.Image(
         src = frame_bytes,
-        fit = BoxFit.FILL
+        fit = ft.BoxFit.FILL
     )
-    video_container = Container(
-        content = camera_preview,
-        margin = 20,
-        bgcolor = Colors.SURFACE_CONTAINER,
+    video_container = ft.Container(
+        # content = camera_preview,
+        margin = ft.Margin(20, 20, 20, 60),
+        bgcolor = ft.Colors.SURFACE_CONTAINER,
         border_radius = 30,
         width = 760,
-        height = 580
+        height = 540
     )
-    threading.Thread(target = cv.update_frames, args = (page, camera_preview), daemon = True).start()
+    # threading.Thread(target = cv.update_frames, args = (page, camera_preview), daemon = True).start()
     
-    # Database Display
-    dt_attendance = DataTable(
-        align = Alignment.CENTER,
-        column_spacing = WIDTH/5,
+    
+    # Database Tables
+    dt_attendance = ft.DataTable(
+        align = ft.Alignment.CENTER,
+        width = WIDTH,
+        expand = True,
+        border = ft.Border.all(2, ft.Colors.SURFACE_BRIGHT),
+        horizontal_lines = ft.border.BorderSide(1, ft.Colors.SURFACE_BRIGHT),
+        # vertical_lines = ft.border.BorderSide(1, Colors.SURFACE_BRIGHT),
+        heading_row_color = ft.Colors.SURFACE_CONTAINER_LOW,
         columns = [
-            DataColumn(Text("Date")),
-            DataColumn(Text("Time")),
-            DataColumn(Text("Student Name")),
-            DataColumn(Text("Student ID")),
+            ft.DataColumn(ft.Text("DATE")),
+            ft.DataColumn(ft.Text("TIME")),
+            ft.DataColumn(ft.Text("NAME")),
+            ft.DataColumn(ft.Text("STATUS")),
         ],
-        rows = [],
+        rows = [], 
+    )
+    dt_classes = ft.DataTable(
+        align = ft.Alignment.CENTER,
+        width = WIDTH,
+        expand = True,
+        border = ft.Border.all(2, ft.Colors.SURFACE_BRIGHT),
+        horizontal_lines = ft.border.BorderSide(1, ft.Colors.SURFACE_BRIGHT),
+        # vertical_lines = ft.border.BorderSide(1, Colors.SURFACE_BRIGHT),
+        heading_row_color = ft.Colors.SURFACE_CONTAINER_LOW,
+        columns = [
+            ft.DataColumn(ft.Text("DATE")),
+            ft.DataColumn(ft.Text("TIME")),
+            ft.DataColumn(ft.Text("SUBJECT CODE")),
+            ft.DataColumn(ft.Text("INSTRUCTOR")),
+        ],
+        rows = [], 
     )
 
-
+    # Database Retrievals and Updates
+    def update_attendance_log():
+        dt_attendance.rows.clear()
+        
+        cols, rows = db.get_attendance_log()
+        for row in rows:
+            if row['date']:
+                date = str(row['date'])
+            if row['time']:
+                time = str(row['time'])
+            
+            dt_attendance.rows.append(
+                ft.DataRow(
+                    cells = [
+                        ft.DataCell(ft.Text(date)),
+                        ft.DataCell(ft.Text(time)),
+                        ft.DataCell(ft.Text(row['student_name'])),
+                        ft.DataCell(ft.Text(row['attendance_status'])),
+                    ]
+                )
+            )
+        
+        page.update()
+    
+    def update_class_list():
+        pass
+    
 
     # ID Scanner page
-    page_1 = Container(
-        Row([
+    page_1 = ft.Container(
+        ft.Row([
             video_container,
-            Container(
+            ft.Container(
                 margin = 20,
                 width = 410,
                 height = 580,
-                content = Container(
-                    Column([
-                        Container(
-                            bgcolor = Colors.SURFACE_CONTAINER,
+                content = ft.Container(
+                    ft.Column([
+                        ft.Container(
+                            bgcolor = ft.Colors.SURFACE_CONTAINER,
                             border_radius = 30,
                             width = 410,
                             height = 100,
-                            content = Column([
-                                Text(
+                            content = ft.Column([
+                                ft.Text(
                                     value = "SCANNER STATUS", 
-                                    align = Alignment.CENTER,
-                                    style = TextStyle(
-                                        weight = FontWeight.BOLD,
+                                    align = ft.Alignment.CENTER,
+                                    style = ft.TextStyle(
+                                        weight = ft.FontWeight.BOLD,
                                         size = 25,
-                                        color = Colors.SURFACE_BRIGHT
+                                        color = ft.Colors.ON_SURFACE_VARIANT
                                     )
                                 ),
-                                Text(
+                                ft.Text(
                                     value = "waiting for scan...", 
-                                    align = Alignment.CENTER,
-                                    style = TextStyle(
+                                    align = ft.Alignment.CENTER,
+                                    style = ft.TextStyle(
                                         size = 20,
-                                        color = Colors.SURFACE_BRIGHT
+                                        color = ft.Colors.SURFACE_BRIGHT
                                     )
                                 )
-                            ], margin = 10,
-                            )
+                            ], spacing = -3, alignment = ft.MainAxisAlignment.CENTER),
                         ),
-                        Container(
-                            bgcolor = Colors.SURFACE_CONTAINER,
+                        ft.Container(
+                            bgcolor = ft.Colors.SURFACE_CONTAINER,
                             border_radius = 30,
                             width = 410,
                             height = 300,
                         ),
-                    ])
+                    ], spacing = 20)
                 )
             )
-        ])
+        ],)
     )
 
     # Attendance Log page
-    page_2 = Container(
-        dt_attendance
+    page_2 = ft.Container(
+        content = dt_attendance,
+        margin = 20,
     )
 
     # Class List page
-    page_3 = Container(Text(value="3"))
+    page_3 = ft.Column(
+            ft.Row([
+                ft.Container(
+                    bgcolor = ft.Colors.SURFACE_CONTAINER,
+                    border_radius = 30,
+                    width = 330,
+                    height = 350,
+                    content = ft.Column(
+                        
+                    )
+                ),
+                dt_classes
+            ], 
+            vertical_alignment = ft.CrossAxisAlignment.START,
+            margin = 20, 
+            spacing = 30,
+        ),
+    )
 
     # Dashboard page
-    page_4 = Container(Text(value="4"))
+    page_4 = ft.Container(ft.Text(value="4"))
 
-    current_page = Container(content = page_1)
+    # Page Container
+    current_page = ft.Container(content = page_1)
 
     # Navigation buttons
     def set_page(e):
-        i = e.page.navigation_bar.selected_index
+        i = e.control.selected_index
 
         if i == 0:
             current_page.content = page_1
         elif i == 1:
             current_page.content = page_2
+            update_attendance_log() # TODO: Transfer this function to be ran after each scan
         elif i == 2:
             current_page.content = page_3
         elif i == 3:
             current_page.content = page_4
         page.update()
     
-    navbar = NavigationBar(destinations = [
-        NavigationBarDestination(
-            icon = Icons.IMAGE,
+    navbar = ft.NavigationBar(destinations = [
+        ft.NavigationBarDestination(
+            icon = ft.Icons.IMAGE,
             label = "ID Scanner"
         ),
-        NavigationBarDestination(
-            icon = Icons.ASSIGNMENT,
+        ft.NavigationBarDestination(
+            icon = ft.Icons.ASSIGNMENT,
             label = "Attendance Log"
         ),
-        NavigationBarDestination(
-            icon = Icons.CLASS_,
+        ft.NavigationBarDestination(
+            icon = ft.Icons.CLASS_,
             label = "Class List"
         ),
-        NavigationBarDestination(
-            icon = Icons.ANALYTICS,
+        ft.NavigationBarDestination(
+            icon = ft.Icons.ANALYTICS,
             label = "Dashboard"
         ),],
         on_change = set_page,
         selected_index = 0,
     )
-    page.navigation_bar = navbar
+    # page.navigation_bar = navbar
 
     page.add(
+        navbar,
+
+        # Changeable content
         current_page
     )
     
@@ -158,4 +228,4 @@ def main(page: Page):
 
 # Run Flet app (Flutter my beloved!!)
 if __name__ == "__main__":
-    run(main)
+    ft.run(main)

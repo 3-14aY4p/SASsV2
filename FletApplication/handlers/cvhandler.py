@@ -3,6 +3,7 @@ import cv2, time, threading
 
 camera = cv2.VideoCapture(0)
 
+# FIXME: Freeze frames and stuttering
 def update_frames(page, camera_preview):
     while camera.isOpened():
         ret, frame = camera.read()
@@ -15,5 +16,3 @@ def update_frames(page, camera_preview):
         page.update()
 
     time.sleep(1/30)
-
-threading.Thread(target=update_frames, daemon=True).start()

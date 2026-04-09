@@ -9,8 +9,8 @@ def get_connection():
         conn = mysql.connector.connect(
             host="localhost",
             user="Admin-110",
+            database="db_SmartAttendance",
             password="attendance",
-            database="db_SmartAttendance"
         )
         if conn.is_connected():
             return conn
@@ -121,7 +121,7 @@ def record_attendance(student_id: str, subject_id: str, instructor_id: str, clas
         # date and time is set to input current date and time upon recording
         sql = """
               INSERT INTO tbl_attendance (subject_id, instructor_id, student_id, class_start, class_end, attendance_status)
-              VALUES (%s, %s, %s, %s, %s, %s) \
+              VALUES (%s, %s, %s, %s, %s, %s)
               """
 
         curs.execute(sql, (subject_id, instructor_id, student_id, class_start, class_end, status,))
@@ -134,27 +134,59 @@ def record_attendance(student_id: str, subject_id: str, instructor_id: str, clas
 
 
 
-# =====================
-# FOR THE GUI TABLES!!!
-# =====================
 
-# fetch attendance log
+#* =====================
+#* FOR THE GUI TABLES!!!
+#* =====================
+
+# fetch ALL ENTRIES for attendance log
 def get_attendance_log():
     try:
         conn = get_connection()
         curs = conn.cursor()
 
         sql = """
-            SELECT a.student_id, st.student_name, a.time, a.date, a.attendance_status
+            SELECT   a.date, a.time, st.student_name, a.attendance_status
             FROM tbl_attendance a
             JOIN tbl_student st ON a.student_id = st.student_id
-            WHERE a.attendance_status NOT IN ('Absent)
+            WHERE a.attendance_status NOT IN ('Absent')
         """
-
+        
         curs.execute(sql)
         logs = curs.fetchall()
+        
+        # Store data into dictionary
+        cols = [column[0] for column in curs.description]
+        rows = [dict(zip(cols, row)) for row in logs]
 
-        return logs
+        return cols, rows
+
+    except mysql.connector.Error as e:
+        print(f"ERR: {e}")
+        return False
+
+
+# fetch ALL ENTRIES class list
+def get_class_list():
+    try:
+        conn = get_connection()
+        curs = conn.cursor()
+
+        sql = """
+            SELECT DISTINCT a.date, a.class_start, a.subject_id
+            FROM tbl_attendance a
+            JOIN tbl_subject sj ON a.subject_id = sj.subject_id
+            WHERE a.attendance_status NOT IN ('Absent')
+        """
+        
+        curs.execute(sql)
+        logs = curs.fetchall()
+        
+        # Store data into dictionary
+        cols = [column[0] for column in curs.description]
+        rows = [dict(zip(cols, row)) for row in logs]
+
+        return cols, rows
 
     except mysql.connector.Error as e:
         print(f"ERR: {e}")

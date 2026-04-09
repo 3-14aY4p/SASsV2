@@ -1,0 +1,165 @@
+
+--
+-- Dumping data for table `student`
+--
+
+INSERT INTO `tbl_student` (`student_id`, `student_name`) VALUES
+('2024-0117-I', 'LIZARDO, JOHN LIM'),
+('2024-0139-I', 'GEPANAYAO, ALTHEA JENNE SIMPAS'),
+('2024-0430-A', 'AGSAMOSAM, JON ALDRICH TENIZO'),
+('2024-0730-I', 'PUERTA, JOFEL BLANCO'),
+('2024-2082-I', 'YAP, PIA ISABELLA TABUADA'),
+('2024-2117-A', 'CALIMBO, QUEEN KIMBERLY CASQUEJO'),
+('2024-2159-A', 'VALENZUELA, CHRISHELLE GICOS'),
+('2024-2219-I', 'CARGASON, MARIAN JANE SAPELINO'),
+('2024-2645-A', 'HECHANOVA, EJ MOVIERA'),
+('2024-2695-I', 'DE VERA, MARK EDEZON SA-AVEDRA'),
+('2024-2780-I', 'SILAO, JOYETTE CARDORA'),
+('2024-2940-I', 'PASCUAL, ANIKA RAFAELLE TUMIBANG'),
+('2024-3925-A', 'ASPERA, DUSTIN RAIN JALES'),
+('2024-4103-A', 'PELER, JOHN CARLO SODUSTA'),
+('2024-4329-A', 'CAGUD, CATHERINE LAMORENO'),
+('2024-4418-A', 'PERALES, IAN PAUL CASTEN'),
+('2024-4502-A', 'PUSOC, JEFF JAYRON VALLEJO'),
+('2024-4548-A', 'MALLORCA, CHARLENE SILLA'),
+('2024-4620-I', 'CATANUS, JAHZEL JAY CANTOMAYOR'),
+('2024-4720-I', 'CONDE, JUSTIN GUEVARRA'),
+('2024-5287-I', 'VESTUIR, CHARLES NEWELL BAGNOL'),
+('2024-5547-A', 'BOHOLANO, TRACY MARIE PAGUNSAN'),
+('2024-5926-A', 'TORIO, SAMANTHA MEI VANCE'),
+('2024-6012-A', 'PASCO, JESHARIE MARIE ANGELES'),
+('2024-6243-I', 'NOCA, JAZZ ESCRUPOLO'),
+('2024-6325-I', 'CABALONGA, ALEXIS PRINCE CAPILITAN'),
+('2024-6609-I', 'CAPAGSITA, JOHN MICHAEL INOCENCIO'),
+('2024-7036-I', 'CORONADO, CHARLES NATHANIEL DUBRIA'),
+('2024-7089-I', 'GARROVILLO, JUSTINNO SERALE'),
+('2024-7159-A', 'CORDERO, RALPH JOSH DETOMAL'),
+('2024-7689-A', 'BACTONG, JOHANN CZARDE ASIS'),
+('2024-7956-I', 'TIRASOL, JAN SINEAD JORGE'),
+('2024-8045-A', 'VINSON, MARIAH REXANNE VILLARDO'),
+('2024-8088-I', 'CALERA, ELYSSA DANIELLE PUNSALAN'),
+('2024-8224-I', 'REY, NIÑO RONALD DAVIV VILLANUEVA'),
+('2024-8400-I', 'ALIMEN, LAWRENCE JOHN ALIMEN'),
+('2024-8686-A', 'PISTOLANTE, TRISTAN DICEN'),
+('2024-9527-A', 'ANGELES, JETHRO ZYRON RUEGO'),
+('2024-9655-A', 'MORALLOS, JANAH LOUISSE ALBONIAN');
+
+--
+-- Dumping data for table `tbl_subject`
+--
+
+INSERT INTO `tbl_subject` (`subject_id`, `subject_title`) VALUES
+('CS-101', 'DATA SCIENCE 1 (DATA SCIENCE TOOLS AND R PROGRAMMING)'),
+('GE-ELEC-1', 'ENVIRONMENTAL SCIENCE'),
+('ICT-107', 'DATA STRUCTURES AND ALGORITHMS'),
+('ICT-110', 'APPLICATIONS DEVELOPMENT AND EMERGING TECHNOLOGIES'),
+('ICT-111', 'OBJECT ORIENTED PROGRAMMING'),
+('ICT-112', 'OPERATING SYSTEMS'),
+('ICT-114', 'SOFTWARE ENGINEERING 1'),
+('PE-4', 'PATHFIT 4 - CHOICE OF DANCE, SPORTS, MARTIAL ARTS, GROUP EXERCISE, OUTDOOR AND ADVENTURE ACTIVITIES');
+
+--
+-- Dumping data for table `tbl_instructor`
+--
+
+INSERT INTO `tbl_instructor` (`instructor_id`, `instructor_name`) VALUES
+("001", 'Mr. C.L. Gimeno'),
+("002", 'Mr. E.A. Centina'),
+("003", 'Mrs. M.F. Franco'),
+("004", 'Mrs. J. Calfoforo'),
+("005", 'Mr. L. Barrios'),
+("006", 'Ms. M. Escriba'),
+("007", 'Prof. J. Marfil'),
+("008", 'Dr. R.A. Torres');
+
+--
+-- Dumping data for table `tbl_enrollment`
+--
+
+INSERT INTO `tbl_enrollment` (`enrollment_id`, `student_id`, `semester`, `school_year`, `course`, `year_level`, `section`) VALUES
+(1, '2024-5547-A', '2nd', '2025-2026', 'BSCS', 2, 'B'),
+(2, '2024-2117-A', '2nd', '2025-2026', 'BSCS', 2, 'B'),
+(3, '2024-0139-I', '2nd', '2025-2026', 'BSCS', 2, 'B'),
+(4, '2024-9655-A', '2nd', '2025-2026', 'BSCS', 2, 'B'),
+(5, '2024-2940-I', '2nd', '2025-2026', 'BSCS', 2, 'B'),
+(6, '2024-5926-A', '2nd', '2025-2026', 'BSCS', 2, 'B'),
+(7, '2024-2159-A', '2nd', '2025-2026', 'BSCS', 2, 'B'),
+(8, '2024-2082-I', '2nd', '2025-2026', 'BSCS', 2, 'B'),
+(9, '2024-0430-A', '2nd', '2025-2026', 'BSCS', 2, 'B'),
+(10, '2024-8400-I', '2nd', '2025-2026', 'BSCS', 2, 'B'),
+(11, '2024-9527-A', '2nd', '2025-2026', 'BSCS', 2, 'B'),
+(12, '2024-3925-A', '2nd', '2025-2026', 'BSCS', 2, 'B'),
+(13, '2024-7689-A', '2nd', '2025-2026', 'BSCS', 2, 'B'),
+(14, '2024-4720-I', '2nd', '2025-2026', 'BSCS', 2, 'B'),
+(15, '2024-7159-A', '2nd', '2025-2026', 'BSCS', 2, 'B'),
+(16, '2024-7036-I', '2nd', '2025-2026', 'BSCS', 2, 'B'),
+(17, '2024-2695-I', '2nd', '2025-2026', 'BSCS', 2, 'B'),
+(18, '2024-7089-I', '2nd', '2025-2026', 'BSCS', 2, 'B'),
+(19, '2024-2645-A', '2nd', '2025-2026', 'BSCS', 2, 'B'),
+(20, '2024-0117-I', '2nd', '2025-2026', 'BSCS', 2, 'B'),
+(21, '2024-6243-I', '2nd', '2025-2026', 'BSCS', 2, 'B'),
+(22, '2024-4103-A', '2nd', '2025-2026', 'BSCS', 2, 'B'),
+(23, '2024-4418-A', '2nd', '2025-2026', 'BSCS', 2, 'B'),
+(24, '2024-8686-A', '2nd', '2025-2026', 'BSCS', 2, 'B'),
+(25, '2024-0730-I', '2nd', '2025-2026', 'BSCS', 2, 'B'),
+(26, '2024-4502-A', '2nd', '2025-2026', 'BSCS', 2, 'B'),
+(27, '2024-8224-I', '2nd', '2025-2026', 'BSCS', 2, 'B'),
+(28, '2024-2780-I', '2nd', '2025-2026', 'BSCS', 2, 'B'),
+(29, '2024-7956-I', '2nd', '2025-2026', 'BSCS', 2, 'B'),
+(30, '2024-5287-I', '2nd', '2025-2026', 'BSCS', 2, 'B'),
+(31, '2024-4329-A', '2nd', '2025-2026', 'BSCS', 2, 'B'),
+(32, '2024-8088-I', '2nd', '2025-2026', 'BSCS', 2, 'B'),
+(33, '2024-2219-I', '2nd', '2025-2026', 'BSCS', 2, 'B'),
+(34, '2024-4548-A', '2nd', '2025-2026', 'BSCS', 2, 'B'),
+(35, '2024-6012-A', '2nd', '2025-2026', 'BSCS', 2, 'B'),
+(36, '2024-8045-A', '2nd', '2025-2026', 'BSCS', 2, 'B'),
+(37, '2024-6325-I', '2nd', '2025-2026', 'BSCS', 2, 'B'),
+(38, '2024-6609-I', '2nd', '2025-2026', 'BSCS', 2, 'B'),
+(39, '2024-4620-I', '2nd', '2025-2026', 'BSCS', 2, 'B');
+
+
+
+--
+-- Dumping data for table `tbl_subjects_enrolled`
+--
+
+INSERT INTO `tbl_subjects_enrolled` (`enrollment_id`, `subject_id`, `instructor_id`) VALUES
+(1, 'ICT-110', "005"),
+(2, 'ICT-110', "005"),
+(3, 'ICT-110', "005"),
+(4, 'ICT-110', "005"),
+(5, 'ICT-110', "005"),
+(6, 'ICT-110', "005"),
+(7, 'ICT-110', "005"),
+(8, 'ICT-110', "005"),
+(9, 'ICT-110', "005"),
+(10, 'ICT-110', "005"),
+(11, 'ICT-110', "005"),
+(12, 'ICT-110', "005"),
+(13, 'ICT-110', "005"),
+(14, 'ICT-110', "005"),
+(15, 'ICT-110', "005"),
+(16, 'ICT-110', "005"),
+(17, 'ICT-110', "005"),
+(18, 'ICT-110', "005"),
+(19, 'ICT-110', "005"),
+(20, 'ICT-110', "005"),
+(21, 'ICT-110', "005"),
+(22, 'ICT-110', "005"),
+(23, 'ICT-110', "005"),
+(24, 'ICT-110', "005"),
+(25, 'ICT-110', "005"),
+(26, 'ICT-110', "005"),
+(27, 'ICT-110', "005"),
+(28, 'ICT-110', "005"),
+(29, 'ICT-110', "005"),
+(30, 'ICT-110', "005"),
+(31, 'ICT-110', "005"),
+(32, 'ICT-110', "005"),
+(33, 'ICT-110', "005"),
+(34, 'ICT-110', "005"),
+(35, 'ICT-110', "005"),
+(36, 'ICT-110', "005"),
+(37, 'ICT-110', "005"),
+(38, 'ICT-110', "005"),
+(39, 'ICT-110', "005");
