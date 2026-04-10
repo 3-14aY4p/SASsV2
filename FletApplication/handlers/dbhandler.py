@@ -57,10 +57,9 @@ def query_subject_enrollment(student_id: str, subject_id: str) -> dict:
         curs = conn.cursor()
 
         curs.execute("""
-            SELECT s.student_name
-            FROM tbl_enrollment e
-            JOIN tbl_student s ON e.student_id = s.student_id
-            JOIN tbl_subjects_enrolled se ON se.enrollment_id = e.enrollment_id
+            SELECT s.student_name FROM tbl_enrollment e
+            INNER JOIN tbl_student s ON e.student_id = s.student_id
+            INNER JOIN tbl_subjects_enrolled se ON se.enrollment_id = e.enrollment_id
             WHERE se.subject_id = %s 
                 AND e.student_id = %s
         """, (subject_id, student_id,))
@@ -75,22 +74,21 @@ def query_subject_enrollment(student_id: str, subject_id: str) -> dict:
         print(f"ERR: {e}")
         return False
 
-# validates if student has has already recorded PRESENT or LATE for the day
-def query_attendance(student_id: str, subject_id: str, date) -> bool:
+# validates if student has has already recorded PRESENT or LATE for the session
+def query_attendance(student_id: str, subject_id: str, date, class_start) -> bool:
     try:
         conn = get_connection()
         curs = conn.cursor()
 
         curs.execute("""
-               SELECT a.attendance_id
-               FROM tbl_attendance a
-               JOIN tbl_enrollment e ON a.student_id = e.student_id
-               JOIN tbl_subjects_enrolled se ON a.subject_id = se.subject_id
+               SELECT a.attendance_id FROM tbl_attendance a
+               INNER JOIN tbl_enrollment e ON a.student_id = e.student_id
+               INNER JOIN tbl_subjects_enrolled se ON a.subject_id = se.subject_id
                WHERE a.student_id = %s
                     AND a.subject_id = %s
                     AND a.date = %s
-                    AND a.attendance_status NOT IN ('Absent')
-               """, (student_id,  subject_id, date,))
+                    AND a.class_start = %s
+               """, (student_id,  subject_id, date, class_start))
 
         if curs.fetchone():
             return True
@@ -99,7 +97,7 @@ def query_attendance(student_id: str, subject_id: str, date) -> bool:
         print(f"ERR: {e}")
         return False
 
-# for writing into database
+# insert attendance after each scan
 def record_attendance(student_id: str, subject_id: str, instructor_id: str, class_start, class_end) -> None:
     try:
         conn = get_connection()
@@ -111,12 +109,13 @@ def record_attendance(student_id: str, subject_id: str, instructor_id: str, clas
 
         # command to alter attendance_status
         # this determines if student is LATE
-        if class_start <= time <= class_end:
-            status = "Present"
-        elif time >= class_start:
-            status = "Late"
-        elif time > class_end:
+     
+        if time >= class_end - datetime(minute = 30):
             status = "Absent"
+        elif time >= class_start + datetime(minute = 15):
+            status = "Late"
+        else:
+            status = "Present"
 
         # date and time is set to input current date and time upon recording
         sql = """
@@ -131,6 +130,58 @@ def record_attendance(student_id: str, subject_id: str, instructor_id: str, clas
         print(f"ERR: {e}")
         return False
 
+
+# FIXME: Make the query only select students that haven't logged in
+# insert attendance after class ends
+def get_absent_students_in_subject(subject_id, instructor_id, class_start):
+    try:
+        conn = get_connection()
+        curs = conn.cursor()
+
+        sql = """
+              SELECT s.student_id, s.student_name FROM tbl_student s
+              JOIN tbl_enrollment e ON e.student_id = s.student_id
+              JOIN tbl_subjects_enrolled se ON se.enrollment_id = e.enrollment_id
+              LEFT OUTER JOIN tbl_attendance a ON
+                  a.student_id = s.student_id
+              WHERE a.attendance_status NOT IN ('Present', 'Late', NULL)
+                AND se.subject_id = %s
+                AND se.instructor_id = %s
+                AND a.class_start = %s
+              """
+              
+        curs.execute(sql, (subject_id, instructor_id, class_start,))
+        students = curs.fetchall()
+        
+        return students
+
+    except mysql.connector.Error as e:
+        print(f"ERR: {e}")
+        return False
+
+def record_absent(student_id:str, subject_id: str, instructor_id: str, class_start, class_end) -> None:
+    try:
+        conn = get_connection()
+        curs = conn.cursor()
+        
+        sql = """
+              INSERT INTO tbl_attendance (subject_id, instructor_id, student_id, class_start, class_end)
+              VALUES (%s, %s, %s, %s, %s)
+              """
+
+        curs.execute(sql, (subject_id, instructor_id, student_id, class_start, class_end))
+        conn.commit()
+
+    except mysql.connector.Error as e:
+        print(f"ERR: {e}")
+        return False
+
+def record_all_absent(subject_id: str, instructor_id: str, class_start, class_end):
+    students = get_absent_students_in_subject(subject_id, instructor_id, class_start)
+    
+    for student in students:
+        record_absent(student[0], subject_id, instructor_id, class_start, class_end)
+    
 
 
 
@@ -148,9 +199,10 @@ def get_attendance_log():
         sql = """
             SELECT   a.date, a.time, st.student_name, e.course, e.year_level, e.section, a.attendance_status
             FROM tbl_attendance a
-            JOIN tbl_student st ON a.student_id = st.student_id
-            JOIN tbl_enrollment e ON e.student_id = st.student_id
+            INNER JOIN tbl_student st ON a.student_id = st.student_id
+            INNER JOIN tbl_enrollment e ON e.student_id = st.student_id
             WHERE a.attendance_status NOT IN ('Absent')
+            ORDER BY a.date DESC
         """
         
         curs.execute(sql)
@@ -177,6 +229,7 @@ def get_class_list():
             SELECT DISTINCT a.date, a.class_start, a.subject_id, i.instructor_name
             FROM tbl_attendance a, tbl_subjects_enrolled se
             JOIN tbl_instructor i ON i.instructor_id = se.instructor_id 
+            ORDER BY a.date DESC
         """
         
         curs.execute(sql)
@@ -191,3 +244,6 @@ def get_class_list():
     except mysql.connector.Error as e:
         print(f"ERR: {e}")
         return False
+
+# fetch records for a specific attendance sheet
+# TODO: Fetch attendance sheet ordered alphabetically

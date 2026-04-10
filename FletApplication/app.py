@@ -2,6 +2,7 @@
 import flet as ft
 import threading
 from datetime import datetime, time, date
+import base64
 
 # Custom files for handling
 import handlers.dbhandler as db
@@ -31,19 +32,30 @@ def main(page: ft.Page):
     # FIXME: Camera Vision stuff; still broken
     frame_bytes = None
     camera_preview = ft.Image(
-        src = frame_bytes,
-        fit = ft.BoxFit.FILL
+        src = "placeholder",
+        width = 760,
+        height = 540,
+        fit = ft.BoxFit.FILL,
     )
+    camera_preview.src_base64 = ""
+    
     video_container = ft.Container(
-        # content = camera_preview,
+        content = camera_preview,
         margin = ft.Margin(0, 0, 0, 60),
         bgcolor = ft.Colors.SURFACE_CONTAINER,
         border_radius = 30,
         width = 760,
         height = 540
     )
-    # threading.Thread(target = cv.update_frames, args = (page, camera_preview), daemon = True).start()
     
+    def on_detect(student_id):
+        pass
+
+    threading.Thread(
+        target=cv.update_frames,
+        args=(page, camera_preview, on_detect),
+        daemon=True
+    ).start()
     
     # Database Tables
     dt_attendance = ft.DataTable(
@@ -52,7 +64,6 @@ def main(page: ft.Page):
         expand = True,
         border = ft.Border.all(2, ft.Colors.SURFACE_BRIGHT),
         horizontal_lines = ft.border.BorderSide(1, ft.Colors.SURFACE_BRIGHT),
-        # vertical_lines = ft.border.BorderSide(1, Colors.SURFACE_BRIGHT),
         heading_row_color = ft.Colors.SURFACE_CONTAINER_LOW,
         columns = [
             ft.DataColumn(ft.Text("DATE")),
@@ -69,7 +80,6 @@ def main(page: ft.Page):
         expand = True,
         border = ft.Border.all(2, ft.Colors.SURFACE_BRIGHT),
         horizontal_lines = ft.border.BorderSide(1, ft.Colors.SURFACE_BRIGHT),
-        # vertical_lines = ft.border.BorderSide(1, Colors.SURFACE_BRIGHT),
         heading_row_color = ft.Colors.SURFACE_CONTAINER_LOW,
         columns = [
             ft.DataColumn(ft.Text("DATE")),
@@ -80,11 +90,15 @@ def main(page: ft.Page):
         rows = [], 
     )
 
-    # Database Retrievals and Updates
+    # Database Retrievals, Updates, and Sort
+    a_cols, a_rows = db.get_attendance_log()
+    c_cols, c_rows = db.get_class_list()
+    
+    
     def update_attendance_log():
         dt_attendance.rows.clear()
         
-        cols, rows = db.get_attendance_log()
+        cols, rows = a_cols, a_rows
         for row in rows:
             dt_attendance.rows.append(
                 ft.DataRow(
@@ -104,7 +118,7 @@ def main(page: ft.Page):
     def update_class_list():
         dt_classes.rows.clear()
         
-        cols, rows = db.get_class_list()
+        cols, rows = c_cols, c_rows
         for row in rows:
             dt_classes.rows.append(
                 ft.DataRow(
@@ -118,6 +132,10 @@ def main(page: ft.Page):
             )
         
         page.update()
+    
+    # TODO: Add filtering and sorting for class list
+    def filter_class_list():
+        pass
     
     
     # Convert strings into datetime objects
@@ -134,6 +152,7 @@ def main(page: ft.Page):
         return date
     
     
+    # TODO: Retrieve from database instead of manually listing
     # For dropdown options
     subject_options = [
         ft.DropdownOption(text = 'ICT-111'),
@@ -312,7 +331,7 @@ def main(page: ft.Page):
                 icon_size = 28,
                 on_click = lambda e: cancel_new_sheet()
             )
-        ], spacing = 100, alignment = ft.CrossAxisAlignment.CENTER),
+        ], spacing = 120, alignment = ft.CrossAxisAlignment.CENTER),
         ft.Container(
             bgcolor = ft.Colors.SURFACE_CONTAINER,
             border_radius = 20,
@@ -371,7 +390,6 @@ def main(page: ft.Page):
         horizontal_alignment = ft.CrossAxisAlignment.CENTER,
         margin = ft.Margin(0, 60, 0, 0), spacing = 20)
     
-
     # Page Container
     current_page = ft.Container(content = page_1)
 
@@ -386,18 +404,18 @@ def main(page: ft.Page):
     # Navigation buttons
     def set_page(e):
         i = e.control.selected_index
-
         if i == 0:
             current_page.content = page_1
         elif i == 1:
             current_page.content = page_2
-            update_attendance_log()             # TODO: Transfer this function to be triggered after each scan
+            update_attendance_log()
         elif i == 2:
             current_page.content = page_3
-            update_class_list()                 # TODO: Transfer this function to be triggered after each new class
+            update_class_list()                 # TODO: Add this function to be triggered after each new class
         elif i == 3:
             current_page.content = page_4
         page.update()
+        
     navbar = ft.NavigationBar(destinations = [
         ft.NavigationBarDestination(
             icon = ft.Icons.IMAGE,
@@ -424,15 +442,15 @@ def main(page: ft.Page):
     page.add(
         navbar,
 
-        # Changeable content
         ft.SafeArea(
             align = ft.Alignment.CENTER,
             
+            # Changeable content
             content = current_page
         )
     )
-    
     page.update()
+
 
 
 # Run Flet app (Flutter my beloved!!)
