@@ -5,9 +5,43 @@ import pytesseract
 import re
 
 
+# color tuples for the roi rect
+color_red = (0, 0, 255)
+color_grn = (0, 255, 0)
+
 # tesseract config
 conf = r"--psm 7 --oem 1 tessedit_char_whitelist=0123456789-AI"
 
+camera = cv2.VideoCapture(0)
+
+
+# get roi rect/frame
+def get_roi_rect(frame):
+    h, w = frame.shape[:2]
+
+    # Scan box — wide and short
+    box_w, box_h = 320, 80
+    x1 = (w - box_w) // 2
+    y1 = (h - box_h) // 2
+    x2 = x1 + box_w
+    y2 = y1 + box_h
+
+    return x1, x2, y1, y2
+
+# draw roi frame
+def draw_roi_rect(frame, color) -> None:
+    x1, x2, y1, y2 = get_roi_rect(frame)
+    
+    cv2.line(frame, (x1,y1), (x1+15,y1), color, 2)
+    cv2.line(frame, (x1,y1), (x1,y1+15), color, 2)
+    cv2.line(frame, (x1,y2), (x1+15,y2), color, 2)
+    cv2.line(frame, (x1,y2), (x1,y2-15), color, 2)
+    cv2.line(frame, (x2,y1), (x2-15,y1), color, 2)
+    cv2.line(frame, (x2,y1), (x2,y1+15), color, 2)
+    cv2.line(frame, (x2,y2), (x2-15,y2), color, 2)
+    cv2.line(frame, (x2,y2), (x2,y2-15), color, 2)
+
+# OCR function
 def extract_id(roi):
     rz = 3  # resize multiplier
 
@@ -33,58 +67,45 @@ def extract_id(roi):
     else:
         return None
 
-
-def update_frames(page, image_control, on_detect):
-    camera = cv2.VideoCapture(0)
-    
+# main camera loop
+def capture_frames(page, image_control, on_detect):
     camera.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
     camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
-    camera.set(cv2.CAP_PROP_FPS, 15)
+    camera.set(cv2.CAP_PROP_FPS, 30)
 
-    last_detected = None
+    last_detected_id = None
 
     while True:
-        ret, frame = camera.read()
-        if not ret:
-            time.sleep(0.033)
+        retv, frame = camera.read()
+        if not retv:
+            time.sleep(1/30)
             continue
 
-        h, w = frame.shape[:2]
+        x1, x2, y1, y2 = get_roi_rect(frame)
 
-        # Scan box — wide and short
-        box_w, box_h = 320, 80
-        x1 = (w - box_w) // 2
-        y1 = (h - box_h) // 2
-        x2 = x1 + box_w
-        y2 = y1 + box_h
-
-        # Crop region inside box and run OCR
+        # crop region inside box and run OCR
         roi = frame[y1:y2, x1:x2]
-        detected = extract_id(roi)
+        detected_id = extract_id(roi)
+        
+        # logic for drawing which scan box
+        if detected_id:
+            draw_roi_rect(frame, color_grn)
+        else:
+            draw_roi_rect(frame, color_red)
 
-        if detected and detected != last_detected:
-            last_detected = detected
-            on_detect(detected)
+        if detected_id and detected_id != last_detected_id:
+            last_detected_id = detected_id
+            on_detect(detected_id, True)
+        else:
+            on_detect("waiting for scan...", False)
 
-        # Draw red scan box on frame
-        color = (0, 0, 255)
-        cv2.line(frame, (x1,y1), (x1+15,y1), color, 2)
-        cv2.line(frame, (x1,y1), (x1,y1+15), color, 2)
-        cv2.line(frame, (x1,y2), (x1+15,y2), color, 2)
-        cv2.line(frame, (x1,y2), (x1,y2-15), color, 2)
-        cv2.line(frame, (x2,y1), (x2-15,y1), color, 2)
-        cv2.line(frame, (x2,y1), (x2,y1+15), color, 2)
-        cv2.line(frame, (x2,y2), (x2-15,y2), color, 2)
-        cv2.line(frame, (x2,y2), (x2,y2-15), color, 2)
-
-        ok, buffer = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, 60])
-        if ok:
+        ret, buffer = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, 60])
+        if ret:
             frame_b64 = base64.b64encode(buffer).decode()
-
-            async def do_update(b64 = frame_b64):
+            async def update_frame(b64 = frame_b64):
                 image_control.src = f"data:image/jpeg;base64,{b64}"
                 image_control.update()
 
-            page.run_task(do_update)
+            page.run_task(update_frame)
 
-        time.sleep(0.066)
+        time.sleep(1/30)

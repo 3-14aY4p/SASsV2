@@ -1,4 +1,5 @@
 # Module/Library imports
+from concurrent.futures import thread
 import flet as ft
 import threading
 from datetime import datetime, time, date
@@ -27,15 +28,23 @@ def main(page: ft.Page):
     page.window.max_height = HEIGHT
     page.window.max_width = WIDTH
     
-
-
+    # Dynamic variables
+    scan_status = ft.Text(
+        value = "waiting for scan...", 
+        align = ft.Alignment.CENTER,
+        style = ft.TextStyle(
+            size = 20,
+            color = ft.Colors.SURFACE_BRIGHT
+        )
+    )
+    
+    
     # FIXME: Camera Vision stuff; still broken
-    frame_bytes = None
     camera_preview = ft.Image(
-        src = "placeholder",
+        src = "FletApplication/test.jpg",
         width = 760,
         height = 540,
-        fit = ft.BoxFit.FILL,
+        fit = ft.BoxFit.COVER,
     )
     camera_preview.src_base64 = ""
     
@@ -47,15 +56,22 @@ def main(page: ft.Page):
         width = 760,
         height = 540
     )
+    # CV Logic for when ID is detected
+    def on_detect(detected_str: str, is_valid: bool):
+        if is_valid:
+            # TODO: ID validation before changing the string
+            page.update()
+            
+        else:
+            scan_status.value = detected_str
+            page.update()
     
-    def on_detect(student_id):
-        pass
-
     threading.Thread(
-        target=cv.update_frames,
-        args=(page, camera_preview, on_detect),
-        daemon=True
-    ).start()
+        target = cv.capture_frames,
+        args = (page, camera_preview, on_detect),
+        daemon = True, 
+        ).start()
+
     
     # Database Tables
     dt_attendance = ft.DataTable(
@@ -192,7 +208,7 @@ def main(page: ft.Page):
                             height = 100,
                             content = ft.Column([
                                 ft.Text(
-                                    value = "SCANNER STATUS", 
+                                    value = "SCAN STATUS", 
                                     align = ft.Alignment.CENTER,
                                     style = ft.TextStyle(
                                         weight = ft.FontWeight.BOLD,
@@ -200,14 +216,7 @@ def main(page: ft.Page):
                                         color = ft.Colors.ON_SURFACE_VARIANT
                                     )
                                 ),
-                                ft.Text(
-                                    value = "waiting for scan...", 
-                                    align = ft.Alignment.CENTER,
-                                    style = ft.TextStyle(
-                                        size = 20,
-                                        color = ft.Colors.SURFACE_BRIGHT
-                                    )
-                                )
+                                scan_status
                             ], spacing = -3, alignment = ft.MainAxisAlignment.CENTER),
                         ),
                         ft.Container(
@@ -456,3 +465,5 @@ def main(page: ft.Page):
 # Run Flet app (Flutter my beloved!!)
 if __name__ == "__main__":
     ft.run(main)
+    cv.camera.release()
+    
