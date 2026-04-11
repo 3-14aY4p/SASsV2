@@ -1,6 +1,6 @@
 import mysql.connector, csv
 from mysql.connector import Error
-from datetime import datetime
+from datetime import datetime, timedelta, time, date
 
 
 # connect to database
@@ -51,7 +51,7 @@ def query_student_id(student_id: str) -> dict:
         return {"success": False}
 
 # validates if student is enrolled in a subject
-def query_subject_enrollment(student_id: str, subject_id: str) -> dict:
+def query_subject_enrollment(student_id: str, subject_id: str, instructor_id: str) -> bool:
     try:
         conn = get_connection()
         curs = conn.cursor()
@@ -61,14 +61,15 @@ def query_subject_enrollment(student_id: str, subject_id: str) -> dict:
             INNER JOIN tbl_student s ON e.student_id = s.student_id
             INNER JOIN tbl_subjects_enrolled se ON se.enrollment_id = e.enrollment_id
             WHERE se.subject_id = %s 
+                AND se.instructor_id = %s
                 AND e.student_id = %s
-        """, (subject_id, student_id,))
+        """, (subject_id, instructor_id, student_id,))
         student = curs.fetchone()
 
         if not student:
-            return {"status": False}
+            return False
         else:
-            return {"status": True, "name": student["student_name"]}
+            return True
 
     except mysql.connector.Error as e:
         print(f"ERR: {e}")
@@ -98,7 +99,7 @@ def query_attendance(student_id: str, subject_id: str, date, class_start) -> boo
         return False
 
 # insert attendance after each scan
-def record_attendance(student_id: str, subject_id: str, instructor_id: str, class_start, class_end) -> None:
+def record_attendance(student_id: str, subject_id: str, instructor_id: str, class_start: time, class_end: time) -> None:
     try:
         conn = get_connection()
         curs = conn.cursor()
@@ -107,12 +108,9 @@ def record_attendance(student_id: str, subject_id: str, instructor_id: str, clas
         time = datetime.now().time()
         status: str = ""
 
-        # command to alter attendance_status
-        # this determines if student is LATE
-     
-        if time >= class_end - datetime(minute = 30):
+        if time >= class_end:
             status = "Absent"
-        elif time >= class_start + datetime(minute = 15):
+        elif time >= class_start:
             status = "Late"
         else:
             status = "Present"

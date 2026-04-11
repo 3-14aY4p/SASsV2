@@ -74,9 +74,16 @@ def main(page: ft.Page):
             color = ft.Colors.SURFACE_BRIGHT
         )
     )
-    
+    manual_input_field = ft.TextField(
+        label = "",
+        expand = True,
+        height = 40,
+        border_color = ft.Colors.ON_SURFACE_VARIANT,
+        on_submit = lambda e: manual_attendance(e)
+    )
+
     # Dynamic variables for Attendance Logging
-    selected_schedule = {
+    schedule = {
         "start": None,
         "end": None,
         "sub": None,
@@ -85,7 +92,7 @@ def main(page: ft.Page):
     }
     schedule_details = [
         ft.Text(
-            value = f"START OF SESSION:      {selected_schedule["start"]}", 
+            value = f"START OF SESSION:      {schedule["start"]}", 
             style = ft.TextStyle(
                 weight = ft.FontWeight.BOLD,
                 size = 15,
@@ -93,7 +100,7 @@ def main(page: ft.Page):
             )
         ),
         ft.Text(
-            value = f"END OF SESSION:      {selected_schedule["end"]}", 
+            value = f"END OF SESSION:      {schedule["end"]}", 
             style = ft.TextStyle(
                 weight = ft.FontWeight.BOLD,
                 size = 15,
@@ -101,7 +108,7 @@ def main(page: ft.Page):
             )
         ),
         ft.Text(
-            value = f"SUBJECT:      {selected_schedule["sub"]}", 
+            value = f"SUBJECT:      {schedule["sub"]}", 
             style = ft.TextStyle(
                 weight = ft.FontWeight.BOLD,
                 size = 15,
@@ -109,7 +116,7 @@ def main(page: ft.Page):
             )
         ),
         ft.Text(
-            value = f"INSTRUCTOR:       {selected_schedule["prof"]}", 
+            value = f"INSTRUCTOR:       {schedule["prof"]}", 
             style = ft.TextStyle(
                 weight = ft.FontWeight.BOLD,
                 size = 15,
@@ -123,7 +130,7 @@ def main(page: ft.Page):
     camera_preview = ft.Image(
         src = "FletApplication/test.jpg",
         width = 760,
-        height = 460,
+        height = 495,
         fit = ft.BoxFit.COVER,
     )
     camera_preview.src_base64 = ""
@@ -134,34 +141,42 @@ def main(page: ft.Page):
         bgcolor = ft.Colors.SURFACE_CONTAINER,
         border_radius = 30,
         width = 760,
-        height = 460
+        height = 495
     )
     
-    # Handle validation and recording of attendance
-    def validate_attendance(student_id: str, subject_id: str, instructor_id: str, class_start, class_end):
-        pass
-
     # CV Logic for when ID template is detected
     def on_scan(ret_string: str, is_valid: bool):
-        if not all(selected_schedule.values()):
+        if not all(schedule.values()):
             scan_status.value = "Please create a schedule first!"
             scan_status.style.color = ft.Colors.RED
             page.update()
             
-            return
-            
+            return 
+
         if is_valid:
             student = db.query_student_id(ret_string)
             
-            if student['status']:
+            if student.get('status'):
                 scan_status.value = "Scanning ID..."
                 scan_status.style.color = ft.Colors.GREEN
                 scanned_name.value = student['name']
                 scanned_name.style.color = ft.Colors.GREEN
                 scanned_id.value = ret_string
                 scanned_id.style.color = ft.Colors.GREEN
-                
-                validate_attendance(ret_string, selected_schedule['sub'], selected_schedule['prof_id'], selected_schedule['start'], selected_schedule['end'])
+                    
+                if db.query_subject_enrollment(ret_string, schedule['sub'], schedule['prof_id']):
+                    if db.query_attendance(ret_string, schedule['sub'], datetime.now().date(), schedule['start']):
+                        scan_status.value = "Previous attendance record found!"
+                        scan_status.style.color = ft.Colors.RED
+                        return
+                    
+                    scan_status.value = "Attendance successfully recorded!"
+                    scan_status.style.color = ft.Colors.GREEN
+                    db.record_attendance(ret_string, schedule['sub'], schedule['prof_id'], schedule['start'], schedule['end'])
+                    
+                else:
+                    scan_status.value = "Student not enrolled in class!"
+                    scan_status.style.color = ft.Colors.RED
 
         else:
             scan_status.value = "Waiting for scan..."
@@ -170,14 +185,39 @@ def main(page: ft.Page):
             scanned_name.style.color = ft.Colors.SURFACE_BRIGHT
             scanned_id.value = "Waiting for scan..."
             scanned_id.style.color = ft.Colors.SURFACE_BRIGHT
-        page.update()    
         
+        page.update()    
     
+    # Handle manual recording of attendance through text fields
+    def manual_attendance(e: str):
+        if not all(schedule.values()):
+            page.show_dialog(ft.SnackBar(ft.Text("Please create schedule first!")))
+            return
+        
+        student = db.query_student_id(e.data)
+        
+        if student.get('status'):
+            if db.query_subject_enrollment(e.data, schedule['sub'], schedule['prof_id']):
+                if not db.query_attendance(e.data, schedule['sub'], datetime.now().date(), schedule['start']):
+                    db.record_attendance(e.data, schedule['sub'], schedule['prof_id'], schedule['start'], schedule['end'])
+                    page.show_dialog(ft.SnackBar(ft.Text("Attendance successfully recorded!")))
+                    manual_input_field.value = ""
+                else:
+                    page.show_dialog(ft.SnackBar(ft.Text("Attendance already recorded.")))
+            else:
+                page.show_dialog(ft.SnackBar(ft.Text("Student not enrolled in class.")))
+        else:
+            page.show_dialog(ft.SnackBar(ft.Text("Invalid ID.")))
+
+        page.update()
+    
+    
+    # Start camera thread
     threading.Thread(
         target = cv.capture_frames,
         args = (page, camera_preview, on_scan),
         daemon = True, 
-        ).start()
+    ).start()
 
 
     
@@ -213,15 +253,11 @@ def main(page: ft.Page):
         ],
         rows = [], 
     )
-
-    # Database Retrievals, Updates, and Sort
-    a_cols, a_rows = db.get_attendance_log()
-    c_cols, c_rows = db.get_class_list()
     
     def update_attendance_log():
         dt_attendance.rows.clear()
         
-        cols, rows = a_cols, a_rows
+        cols, rows = db.get_attendance_log()
         for row in rows:
             dt_attendance.rows.append(
                 ft.DataRow(
@@ -241,7 +277,7 @@ def main(page: ft.Page):
     def update_class_list():
         dt_classes.rows.clear()
         
-        cols, rows = c_cols, c_rows
+        cols, rows = db.get_class_list()
         for row in rows:
             dt_classes.rows.append(
                 ft.DataRow(
@@ -300,7 +336,7 @@ def main(page: ft.Page):
                     schedule_details[1],
                     schedule_details[2],
                     schedule_details[3],
-                ], spacing = 100, alignment = ft.CrossAxisAlignment.CENTER)
+                ], spacing = 90, alignment = ft.CrossAxisAlignment.CENTER)
             ),
             ft.Row([
                 video_container,
@@ -366,6 +402,19 @@ def main(page: ft.Page):
                                     scan_status
                                 ], spacing = -3, alignment = ft.MainAxisAlignment.CENTER),
                             ),
+                            ft.Container(
+                                width = 410,
+                                height = 100,
+                                content = ft.Column([
+                                    ft.Text(
+                                        value = "Manual ID Input: ",
+                                        style = ft.TextStyle(
+                                        size = 15,
+                                        color = ft.Colors.ON_SURFACE_VARIANT
+                                    )),
+                                    manual_input_field
+                                ], margin = ft.Margin(20, 10, 20, 10), alignment = ft.MainAxisAlignment.CENTER)
+                            )
                         ], spacing = 20)
                     )
                 )
@@ -579,21 +628,21 @@ def main(page: ft.Page):
             return
         
         else:
-            selected_schedule['start'] = convert_time(sched_start_field.value)
-            selected_schedule['end'] = convert_time(sched_end_field.value)
-            selected_schedule['sub'] = subject_dropdown.content.value
-            selected_schedule['prof'] = instructor_dropdown.content.text
-            selected_schedule['prof_id'] = instructor_dropdown.content.value
+            schedule['start'] = convert_time(sched_start_field.value)
+            schedule['end'] = convert_time(sched_end_field.value)
+            schedule['sub'] = subject_dropdown.content.value
+            schedule['prof'] = instructor_dropdown.content.text
+            schedule['prof_id'] = instructor_dropdown.content.value
             
             clear_sheet_values()
             
             current_page.content = page_3
 
     def update_page_values():
-        schedule_details[0].value = f"START OF SESSION:      {selected_schedule['start']}"
-        schedule_details[1].value = f"END OF SESSION:      {selected_schedule['end']}"
-        schedule_details[2].value = f"SUBJECT:      {selected_schedule['sub']}"
-        schedule_details[3].value = f"INSTRUCTOR:      {selected_schedule['prof']}"
+        schedule_details[0].value = f"START OF SESSION:      {schedule['start']}"
+        schedule_details[1].value = f"END OF SESSION:      {schedule['end']}"
+        schedule_details[2].value = f"SUBJECT:      {schedule['sub']}"
+        schedule_details[3].value = f"INSTRUCTOR:      {schedule['prof']}"
         
         page.update()
 
