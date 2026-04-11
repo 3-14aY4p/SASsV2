@@ -1,16 +1,15 @@
 # Module/Library imports
-from concurrent.futures import thread
 import flet as ft
 import threading
+import time as t
 from datetime import datetime, time, date
-import base64
 
 # Custom files for handling
 import handlers.dbhandler as db
 import handlers.cvhandler as cv
 
 
-#* Main structure; We gotta put it all here!!
+# Main structure; We gotta put it all here!!
 def main(page: ft.Page):
     # Page settings
     page.title = "SASs: Smart Attendance System"
@@ -28,7 +27,9 @@ def main(page: ft.Page):
     page.window.max_height = HEIGHT
     page.window.max_width = WIDTH
     
-    # Dynamic variables
+    
+ 
+    # Dynamic variables for Scanner
     scan_status = ft.Text(
         value = "waiting for scan...", 
         align = ft.Alignment.CENTER,
@@ -37,13 +38,67 @@ def main(page: ft.Page):
             color = ft.Colors.SURFACE_BRIGHT
         )
     )
+    scanned_name = ft.Text(
+        value = "waiting for scan...", 
+        align = ft.Alignment.CENTER,
+        style = ft.TextStyle(
+            size = 20,
+            color = ft.Colors.SURFACE_BRIGHT
+        )
+    )
+    scanned_id = ft.Text(
+        value = "waiting for scan...", 
+        align = ft.Alignment.CENTER,
+        style = ft.TextStyle(
+            size = 20,
+            color = ft.Colors.SURFACE_BRIGHT
+        )
+    )
     
+    # Dynamic variables for Attendance Logging
+    # Order: class_start, class_end, subject, instructor
+    selected_schedule = [None, None, None, None]
+    schedule_details = [
+        ft.Text(
+            value = f"START OF SESSION:      {selected_schedule[0]}", 
+            style = ft.TextStyle(
+                weight = ft.FontWeight.BOLD,
+                size = 15,
+                color = ft.Colors.ON_SURFACE_VARIANT
+            )
+        ),
+        ft.Text(
+            value = f"END OF SESSION:      {selected_schedule[1]}", 
+            style = ft.TextStyle(
+                weight = ft.FontWeight.BOLD,
+                size = 15,
+                color = ft.Colors.ON_SURFACE_VARIANT
+            )
+        ),
+        ft.Text(
+            value = f"SUBJECT:      {selected_schedule[2]}", 
+            style = ft.TextStyle(
+                weight = ft.FontWeight.BOLD,
+                size = 15,
+                color = ft.Colors.ON_SURFACE_VARIANT
+            )
+        ),
+        ft.Text(
+            value = f"INSTRUCTOR:       {selected_schedule[3]}", 
+            style = ft.TextStyle(
+                weight = ft.FontWeight.BOLD,
+                size = 15,
+                color = ft.Colors.ON_SURFACE_VARIANT
+            )
+        ),
+    ]
+
     
     # FIXME: Camera Vision stuff; still broken
     camera_preview = ft.Image(
         src = "FletApplication/test.jpg",
         width = 760,
-        height = 540,
+        height = 460,
         fit = ft.BoxFit.COVER,
     )
     camera_preview.src_base64 = ""
@@ -54,17 +109,16 @@ def main(page: ft.Page):
         bgcolor = ft.Colors.SURFACE_CONTAINER,
         border_radius = 30,
         width = 760,
-        height = 540
+        height = 460
     )
+    
+    # Handle validation and recording of attendance
+    def validate_attendance(student_id: str, subject_id: str, instructor_id: str, class_start, class_end):
+        pass
+
     # CV Logic for when ID is detected
-    def on_detect(detected_str: str, is_valid: bool):
-        if is_valid:
-            # TODO: ID validation before changing the string
-            page.update()
-            
-        else:
-            scan_status.value = detected_str
-            page.update()
+    def on_detect(ret_string: str, is_valid: bool):
+        pass
     
     threading.Thread(
         target = cv.capture_frames,
@@ -161,7 +215,7 @@ def main(page: ft.Page):
 
         return time
     
-    def convert_time(date_str: str) -> date:
+    def convert_date(date_str: str) -> date:
         format = "%Y/%m/%d"
         date = datetime.strptime(date_str, format).date()
 
@@ -194,47 +248,96 @@ def main(page: ft.Page):
 
     # ID Scanner page
     page_1 = ft.Container(
-        ft.Row([
-            video_container,
+        ft.Column([
             ft.Container(
-                width = 410,
-                height = 580,
-                content = ft.Container(
-                    ft.Column([
-                        ft.Container(
-                            bgcolor = ft.Colors.SURFACE_CONTAINER,
-                            border_radius = 30,
-                            width = 410,
-                            height = 100,
-                            content = ft.Column([
-                                ft.Text(
-                                    value = "SCAN STATUS", 
-                                    align = ft.Alignment.CENTER,
-                                    style = ft.TextStyle(
-                                        weight = ft.FontWeight.BOLD,
-                                        size = 25,
-                                        color = ft.Colors.ON_SURFACE_VARIANT
-                                    )
-                                ),
-                                scan_status
-                            ], spacing = -3, alignment = ft.MainAxisAlignment.CENTER),
-                        ),
-                        ft.Container(
-                            bgcolor = ft.Colors.SURFACE_CONTAINER,
-                            border_radius = 30,
-                            width = 410,
-                            height = 300,
-                        ),
-                    ], spacing = 20)
+                align = ft.Alignment.CENTER,
+                width = WIDTH,
+                height = 80,
+                bgcolor = ft.Colors.SURFACE_CONTAINER,
+                border_radius = 20,
+                expand = True,
+                content = ft.Row([
+                    schedule_details[0],
+                    schedule_details[1],
+                    schedule_details[2],
+                    schedule_details[3],
+                ], spacing = 100, alignment = ft.CrossAxisAlignment.CENTER)
+            ),
+            ft.Row([
+                video_container,
+                ft.Container(
+                    width = 410,
+                    height = 580,
+                    content = ft.Container(
+                        ft.Column([
+                            ft.Text(
+                                value = "STUDENT INFORMATION", 
+                                align = ft.Alignment.CENTER,
+                                style = ft.TextStyle(
+                                    weight = ft.FontWeight.BOLD,
+                                    size = 25,
+                                    color = ft.Colors.ON_SURFACE_VARIANT
+                                )
+                            ),
+                            ft.Container(
+                                bgcolor = ft.Colors.SURFACE_CONTAINER,
+                                border_radius = 30,
+                                width = 410,
+                                height = 200,
+                                content = ft.Column([
+                                    ft.Text(
+                                        value = "STUDENT NAME", 
+                                        align = ft.Alignment.CENTER,
+                                        style = ft.TextStyle(
+                                            weight = ft.FontWeight.BOLD,
+                                            size = 25,
+                                            color = ft.Colors.ON_SURFACE_VARIANT
+                                        )
+                                    ),
+                                    scanned_name,
+                                    
+                                    ft.Text(
+                                        margin = ft.Margin(0, 30, 0, 0),
+                                        value = "STUDENT ID", 
+                                        align = ft.Alignment.CENTER,
+                                        style = ft.TextStyle(
+                                            weight = ft.FontWeight.BOLD,
+                                            size = 25,
+                                            color = ft.Colors.ON_SURFACE_VARIANT
+                                        )
+                                    ),
+                                    scanned_id,
+                                ], spacing = -3, alignment = ft.MainAxisAlignment.CENTER),
+                            ),
+                            ft.Container(
+                                bgcolor = ft.Colors.SURFACE_CONTAINER,
+                                border_radius = 30,
+                                width = 410,
+                                height = 100,
+                                content = ft.Column([
+                                    ft.Text(
+                                        value = "SCAN STATUS", 
+                                        align = ft.Alignment.CENTER,
+                                        style = ft.TextStyle(
+                                            weight = ft.FontWeight.BOLD,
+                                            size = 25,
+                                            color = ft.Colors.ON_SURFACE_VARIANT
+                                        )
+                                    ),
+                                    scan_status
+                                ], spacing = -3, alignment = ft.MainAxisAlignment.CENTER),
+                            ),
+                        ], spacing = 20)
+                    )
                 )
-            )
-        ], spacing = 30, vertical_alignment = ft.CrossAxisAlignment.START,), margin = 30
+            ], spacing = 30, vertical_alignment = ft.CrossAxisAlignment.START, align = ft.Alignment.CENTER)
+        ], margin = 30, spacing = 30, align = ft.Alignment.CENTER,)
     )
 
     # Attendance Log page
     page_2 = ft.Container(
         content = dt_attendance,
-        margin = 20,
+        margin = 20
     )
 
     # Class List page
@@ -326,6 +429,49 @@ def main(page: ft.Page):
     # Dashboard page
     page_4 = ft.Container(ft.Text(value="DASHBOARD HERE!!!"))
     
+    
+    
+    # new sheet variables
+    sched_start_field = ft.TextField(
+        border_color = ft.Colors.SURFACE_BRIGHT,
+        width = 200,
+        height = 50,
+        border_radius = 10,
+        label = ft.Text("Start Time"),
+        hint_text = "07:30",
+    )
+    sched_end_field = ft.TextField(
+        border_color = ft.Colors.SURFACE_BRIGHT,
+        width = 200,
+        height = 50,
+        border_radius = 10,
+        label = ft.Text("End Time"),
+        hint_text = "09:30",
+    )
+    subject_dropdown = ft.Container(
+        width = 420,
+        height = 50,
+        content = ft.Dropdown(
+            expand = True,
+            bgcolor = ft.Colors.SURFACE_CONTAINER_HIGH,
+            border_color = ft.Colors.SURFACE_BRIGHT,
+            label = ft.Text("Subject"),
+            options = subject_options,
+        )
+    )
+    instructor_dropdown = ft.Container(
+        width = 420,
+        height = 50,
+        content = ft.Dropdown(
+            expand = True,
+            bgcolor = ft.Colors.SURFACE_CONTAINER_HIGH,
+            border_color = ft.Colors.SURFACE_BRIGHT,
+            label = ft.Text("Instructor"),
+            options = instructor_options,
+        )
+    )
+    
+    
     # New sheet page
     page_5 = ft.Column([
         ft.Row([
@@ -348,51 +494,18 @@ def main(page: ft.Page):
             height = 320,
             content = ft.Column([
                 ft.Row([
-                    ft.TextField(
-                        border_color = ft.Colors.SURFACE_BRIGHT,
-                        width = 200,
-                        height = 50,
-                        border_radius = 10,
-                        label = ft.Text("Start Time"),
-                        hint_text = "07:30",
-                    ),
-                    ft.TextField(
-                        border_color = ft.Colors.SURFACE_BRIGHT,
-                        width = 200,
-                        height = 50,
-                        border_radius = 10,
-                        label = ft.Text("End Time"),
-                        hint_text = "09:30",
-                    ),
+                    sched_start_field,
+                    sched_end_field
                 ], spacing = 20),
-                ft.Container(
-                    width = 420,
-                    height = 50,
-                    content = ft.Dropdown(
-                        expand = True,
-                        bgcolor = ft.Colors.SURFACE_CONTAINER_HIGH,
-                        border_color = ft.Colors.SURFACE_BRIGHT,
-                        label = ft.Text("Subject"),
-                        options = subject_options,
-                    )
-                ),
-                ft.Container(
-                    width = 420,
-                    height = 50,
-                    content = ft.Dropdown(
-                        expand = True,
-                        bgcolor = ft.Colors.SURFACE_CONTAINER_HIGH,
-                        border_color = ft.Colors.SURFACE_BRIGHT,
-                        label = ft.Text("Instructor"),
-                        options = instructor_options,
-                    )
-                ),
+                subject_dropdown,
+                instructor_dropdown,
                 ft.Button(
                     bgcolor = ft.Colors.SURFACE_CONTAINER_HIGH,
                     width = 240,
                     height = 50,
                     content = ft.Text("CREATE"),
-                    margin = ft.Margin(240, 0, 0, 0)
+                    margin = ft.Margin(240, 0, 0, 0),
+                    on_click = lambda e: confirm_schedule()
                 )
             ], alignment = ft.Alignment.TOP_CENTER, margin = 30, spacing = 20)
         ),], 
@@ -407,14 +520,45 @@ def main(page: ft.Page):
     def new_sheet():
         current_page.content = page_5
         
+    def clear_sheet_values():
+        sched_start_field.value = ""
+        sched_end_field.value = ""
+        subject_dropdown.content.value = "Default"
+        instructor_dropdown.content.value = "Default"
+        
+    # Cancel selection
     def cancel_new_sheet():
+        clear_sheet_values()
         current_page.content = page_3
+
+    # Confirm new schedule
+    def confirm_schedule():
+        if sched_start_field.value == "" or sched_end_field.value == "" or subject_dropdown.content.value == None or instructor_dropdown.content.value == None:
+            page.show_dialog(ft.SnackBar(ft.Text("Please don't leave fields empty.")))
+        else:
+            selected_schedule[0] = sched_start_field.value
+            selected_schedule[1] = sched_end_field.value
+            selected_schedule[2] = subject_dropdown.content.value
+            selected_schedule[3] = instructor_dropdown.content.value
+            clear_sheet_values()
+            
+            current_page.content = page_3
+
+    def update_page_values():
+        schedule_details[0].value = f"START OF SESSION:      {selected_schedule[0]}"
+        schedule_details[1].value = f"END OF SESSION:      {selected_schedule[1]}"
+        schedule_details[2].value = f"SUBJECT:      {selected_schedule[2]}"
+        schedule_details[3].value = f"INSTRUCTOR:      {selected_schedule[3]}"
+        
+        page.update()
+
 
     # Navigation buttons
     def set_page(e):
         i = e.control.selected_index
         if i == 0:
             current_page.content = page_1
+            update_page_values()
         elif i == 1:
             current_page.content = page_2
             update_attendance_log()

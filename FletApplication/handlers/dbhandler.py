@@ -44,7 +44,7 @@ def query_student_id(student_id: str) -> dict:
         if not student:
             return {"success": False}
         else:
-            return {"success": True, "name": student}
+            return {"success": True, "name": student[0]}
 
     except mysql.connector.Error as e:
         print(f"ERR: {e}")
@@ -130,58 +130,6 @@ def record_attendance(student_id: str, subject_id: str, instructor_id: str, clas
         print(f"ERR: {e}")
         return False
 
-
-# FIXME: Make the query only select students that haven't logged in
-# insert attendance after class ends
-def get_absent_students_in_subject(subject_id, instructor_id, class_start):
-    try:
-        conn = get_connection()
-        curs = conn.cursor()
-
-        sql = """
-              SELECT s.student_id, s.student_name FROM tbl_student s
-              JOIN tbl_enrollment e ON e.student_id = s.student_id
-              JOIN tbl_subjects_enrolled se ON se.enrollment_id = e.enrollment_id
-              LEFT OUTER JOIN tbl_attendance a ON
-                  a.student_id = s.student_id
-              WHERE a.attendance_status NOT IN ('Present', 'Late', NULL)
-                AND se.subject_id = %s
-                AND se.instructor_id = %s
-                AND a.class_start = %s
-              """
-              
-        curs.execute(sql, (subject_id, instructor_id, class_start,))
-        students = curs.fetchall()
-        
-        return students
-
-    except mysql.connector.Error as e:
-        print(f"ERR: {e}")
-        return False
-
-def record_absent(student_id:str, subject_id: str, instructor_id: str, class_start, class_end) -> None:
-    try:
-        conn = get_connection()
-        curs = conn.cursor()
-        
-        sql = """
-              INSERT INTO tbl_attendance (subject_id, instructor_id, student_id, class_start, class_end)
-              VALUES (%s, %s, %s, %s, %s)
-              """
-
-        curs.execute(sql, (subject_id, instructor_id, student_id, class_start, class_end))
-        conn.commit()
-
-    except mysql.connector.Error as e:
-        print(f"ERR: {e}")
-        return False
-
-def record_all_absent(subject_id: str, instructor_id: str, class_start, class_end):
-    students = get_absent_students_in_subject(subject_id, instructor_id, class_start)
-    
-    for student in students:
-        record_absent(student[0], subject_id, instructor_id, class_start, class_end)
-    
 
 
 

@@ -14,7 +14,6 @@ conf = r"--psm 7 --oem 1 tessedit_char_whitelist=0123456789-AI"
 
 camera = cv2.VideoCapture(0)
 
-
 # get roi rect/frame
 def get_roi_rect(frame):
     h, w = frame.shape[:2]
@@ -87,16 +86,13 @@ def capture_frames(page, image_control, on_detect):
         roi = frame[y1:y2, x1:x2]
         detected_id = extract_id(roi)
         
-        # logic for drawing which scan box
         if detected_id:
             draw_roi_rect(frame, color_grn)
+            if detected_id != last_detected_id:
+                last_detected_id = detected_id
+                on_detect(detected_id, True)
         else:
             draw_roi_rect(frame, color_red)
-
-        if detected_id and detected_id != last_detected_id:
-            last_detected_id = detected_id
-            on_detect(detected_id, True)
-        else:
             on_detect("waiting for scan...", False)
 
         ret, buffer = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, 60])
