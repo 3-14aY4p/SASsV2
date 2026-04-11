@@ -28,6 +28,26 @@ def main(page: ft.Page):
     page.window.max_width = WIDTH
     
     
+    # Convert strings into datetime objects
+    def convert_time(time_str: str) -> time:
+        format = "%H:%M"
+        try:
+            time = datetime.strptime(time_str, format).time()
+            return time
+        
+        except ValueError as e:
+            page.show_dialog(ft.SnackBar(ft.Text("Please enter the correct format.")))
+            return False
+    def convert_date(date_str: str) -> date:
+        format = "%Y/%m/%d"
+        try:
+            date = datetime.strptime(date_str, format).date()
+            return date
+        
+        except ValueError as e:
+            page.show_dialog(ft.SnackBar(ft.Text("Please enter the correct format.")))
+            return False
+ 
  
     # Dynamic variables for Scanner
     scan_status = ft.Text(
@@ -56,11 +76,16 @@ def main(page: ft.Page):
     )
     
     # Dynamic variables for Attendance Logging
-    # Order: class_start, class_end, subject, instructor
-    selected_schedule = [None, None, None, None]
+    selected_schedule = {
+        "start": None,
+        "end": None,
+        "sub": None,
+        "prof": None,
+        'prof_id': None,
+    }
     schedule_details = [
         ft.Text(
-            value = f"START OF SESSION:      {selected_schedule[0]}", 
+            value = f"START OF SESSION:      {selected_schedule["start"]}", 
             style = ft.TextStyle(
                 weight = ft.FontWeight.BOLD,
                 size = 15,
@@ -68,7 +93,7 @@ def main(page: ft.Page):
             )
         ),
         ft.Text(
-            value = f"END OF SESSION:      {selected_schedule[1]}", 
+            value = f"END OF SESSION:      {selected_schedule["end"]}", 
             style = ft.TextStyle(
                 weight = ft.FontWeight.BOLD,
                 size = 15,
@@ -76,7 +101,7 @@ def main(page: ft.Page):
             )
         ),
         ft.Text(
-            value = f"SUBJECT:      {selected_schedule[2]}", 
+            value = f"SUBJECT:      {selected_schedule["sub"]}", 
             style = ft.TextStyle(
                 weight = ft.FontWeight.BOLD,
                 size = 15,
@@ -84,7 +109,7 @@ def main(page: ft.Page):
             )
         ),
         ft.Text(
-            value = f"INSTRUCTOR:       {selected_schedule[3]}", 
+            value = f"INSTRUCTOR:       {selected_schedule["prof"]}", 
             style = ft.TextStyle(
                 weight = ft.FontWeight.BOLD,
                 size = 15,
@@ -94,7 +119,7 @@ def main(page: ft.Page):
     ]
 
     
-    # FIXME: Camera Vision stuff; still broken
+    # FIXME: Camera Vision stuff; still broken; constant flickering
     camera_preview = ft.Image(
         src = "FletApplication/test.jpg",
         width = 760,
@@ -116,15 +141,44 @@ def main(page: ft.Page):
     def validate_attendance(student_id: str, subject_id: str, instructor_id: str, class_start, class_end):
         pass
 
-    # CV Logic for when ID is detected
-    def on_detect(ret_string: str, is_valid: bool):
-        pass
+    # CV Logic for when ID template is detected
+    def on_scan(ret_string: str, is_valid: bool):
+        if not all(selected_schedule.values()):
+            scan_status.value = "Please create a schedule first!"
+            scan_status.style.color = ft.Colors.RED
+            page.update()
+            
+            return
+            
+        if is_valid:
+            student = db.query_student_id(ret_string)
+            
+            if student['status']:
+                scan_status.value = "Scanning ID..."
+                scan_status.style.color = ft.Colors.GREEN
+                scanned_name.value = student['name']
+                scanned_name.style.color = ft.Colors.GREEN
+                scanned_id.value = ret_string
+                scanned_id.style.color = ft.Colors.GREEN
+                
+                validate_attendance(ret_string, selected_schedule['sub'], selected_schedule['prof_id'], selected_schedule['start'], selected_schedule['end'])
+
+        else:
+            scan_status.value = "Waiting for scan..."
+            scan_status.style.color = ft.Colors.SURFACE_BRIGHT
+            scanned_name.value = "Waiting for scan..."
+            scanned_name.style.color = ft.Colors.SURFACE_BRIGHT
+            scanned_id.value = "Waiting for scan..."
+            scanned_id.style.color = ft.Colors.SURFACE_BRIGHT
+        page.update()    
+        
     
     threading.Thread(
         target = cv.capture_frames,
-        args = (page, camera_preview, on_detect),
+        args = (page, camera_preview, on_scan),
         daemon = True, 
         ).start()
+
 
     
     # Database Tables
@@ -164,7 +218,6 @@ def main(page: ft.Page):
     a_cols, a_rows = db.get_attendance_log()
     c_cols, c_rows = db.get_class_list()
     
-    
     def update_attendance_log():
         dt_attendance.rows.clear()
         
@@ -202,25 +255,11 @@ def main(page: ft.Page):
             )
         
         page.update()
+      
     
     # TODO: Add filtering and sorting for class list
     def filter_class_list():
         pass
-    
-    
-    # Convert strings into datetime objects
-    def convert_time(time_str: str) -> time:
-        format = "%H:%M"
-        time = datetime.strptime(time_str, format).time()
-
-        return time
-    
-    def convert_date(date_str: str) -> date:
-        format = "%Y/%m/%d"
-        date = datetime.strptime(date_str, format).date()
-
-        return date
-    
     
     # TODO: Retrieve from database instead of manually listing
     # For dropdown options
@@ -235,14 +274,14 @@ def main(page: ft.Page):
         ft.DropdownOption(text = 'GE-ELEC-1'),
     ]
     instructor_options = [
-        ft.DropdownOption(text = 'Mr. C.L. Gimeno'),
-        ft.DropdownOption(text = 'Mr. E.A. Centina'),
-        ft.DropdownOption(text = 'Mrs. M.F. Franco'),
-        ft.DropdownOption(text = 'Mrs. J. Calfoforo'),
-        ft.DropdownOption(text = 'Mr. L. Barrios'),
-        ft.DropdownOption(text = 'Ms. M. Escriba'),
-        ft.DropdownOption(text = 'Prof. J. Marfil'),
-        ft.DropdownOption(text = 'Dr. R.A. Torres'),
+        ft.DropdownOption(text = 'Mr. C.L. Gimeno', key = '001'),
+        ft.DropdownOption(text = 'Mr. E.A. Centina', key = '002'),
+        ft.DropdownOption(text = 'Mrs. M.F. Franco', key = '003'),
+        ft.DropdownOption(text = 'Mrs. J. Calfoforo', key = '004'),
+        ft.DropdownOption(text = 'Mr. L. Barrios', key = '005'),
+        ft.DropdownOption(text = 'Ms. M. Escriba', key = '006'),
+        ft.DropdownOption(text = 'Prof. J. Marfil', key = '007'),
+        ft.DropdownOption(text = 'Dr. R.A. Torres', key = '008'),
     ]
 
 
@@ -535,20 +574,26 @@ def main(page: ft.Page):
     def confirm_schedule():
         if sched_start_field.value == "" or sched_end_field.value == "" or subject_dropdown.content.value == None or instructor_dropdown.content.value == None:
             page.show_dialog(ft.SnackBar(ft.Text("Please don't leave fields empty.")))
+        
+        elif convert_time(sched_start_field.value) == False or convert_time(sched_end_field.value) == False:
+            return
+        
         else:
-            selected_schedule[0] = sched_start_field.value
-            selected_schedule[1] = sched_end_field.value
-            selected_schedule[2] = subject_dropdown.content.value
-            selected_schedule[3] = instructor_dropdown.content.value
+            selected_schedule['start'] = convert_time(sched_start_field.value)
+            selected_schedule['end'] = convert_time(sched_end_field.value)
+            selected_schedule['sub'] = subject_dropdown.content.value
+            selected_schedule['prof'] = instructor_dropdown.content.text
+            selected_schedule['prof_id'] = instructor_dropdown.content.value
+            
             clear_sheet_values()
             
             current_page.content = page_3
 
     def update_page_values():
-        schedule_details[0].value = f"START OF SESSION:      {selected_schedule[0]}"
-        schedule_details[1].value = f"END OF SESSION:      {selected_schedule[1]}"
-        schedule_details[2].value = f"SUBJECT:      {selected_schedule[2]}"
-        schedule_details[3].value = f"INSTRUCTOR:      {selected_schedule[3]}"
+        schedule_details[0].value = f"START OF SESSION:      {selected_schedule['start']}"
+        schedule_details[1].value = f"END OF SESSION:      {selected_schedule['end']}"
+        schedule_details[2].value = f"SUBJECT:      {selected_schedule['sub']}"
+        schedule_details[3].value = f"INSTRUCTOR:      {selected_schedule['prof']}"
         
         page.update()
 

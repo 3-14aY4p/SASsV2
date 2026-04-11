@@ -42,9 +42,9 @@ def query_student_id(student_id: str) -> dict:
         student = curs.fetchone()
 
         if not student:
-            return {"success": False}
+            return {"status": False}
         else:
-            return {"success": True, "name": student[0]}
+            return {"status": True, "name": student[0]}
 
     except mysql.connector.Error as e:
         print(f"ERR: {e}")
@@ -66,9 +66,9 @@ def query_subject_enrollment(student_id: str, subject_id: str) -> dict:
         student = curs.fetchone()
 
         if not student:
-            return {"success": False}
+            return {"status": False}
         else:
-            return {"success": True, "name": student["student_name"]}
+            return {"status": True, "name": student["student_name"]}
 
     except mysql.connector.Error as e:
         print(f"ERR: {e}")
@@ -130,7 +130,7 @@ def record_attendance(student_id: str, subject_id: str, instructor_id: str, clas
         print(f"ERR: {e}")
         return False
 
-
+# TODO: Get list of students and iterate through the absent students
 
 
 

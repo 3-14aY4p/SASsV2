@@ -42,7 +42,7 @@ def draw_roi_rect(frame, color) -> None:
 
 # OCR function
 def extract_id(roi):
-    rz = 3  # resize multiplier
+    rz = 5  # resize multiplier
 
     # preprocessing stuffs; cleaning up the image
     p_img = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
@@ -67,7 +67,7 @@ def extract_id(roi):
         return None
 
 # main camera loop
-def capture_frames(page, image_control, on_detect):
+def capture_frames(page, image_control, on_scan):
     camera.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
     camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
     camera.set(cv2.CAP_PROP_FPS, 30)
@@ -90,10 +90,10 @@ def capture_frames(page, image_control, on_detect):
             draw_roi_rect(frame, color_grn)
             if detected_id != last_detected_id:
                 last_detected_id = detected_id
-                on_detect(detected_id, True)
+                on_scan(detected_id, True)
         else:
             draw_roi_rect(frame, color_red)
-            on_detect("waiting for scan...", False)
+            on_scan("", False)
 
         ret, buffer = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, 60])
         if ret:
