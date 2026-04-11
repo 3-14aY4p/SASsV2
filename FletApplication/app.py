@@ -3,13 +3,7 @@ import asyncio
 from datetime import datetime
 import handlers.dbhandler as db
 import flet as ft
-
-from handlers.cvhandler import (
-    get_processed_frame,
-    frame_to_jpeg_bytes,
-    get_scan_data,
-    release_camera,
-)
+import handlers.cvhandler
 
 BG0 = "#171717"
 BG1 = "#e8e4df"
@@ -394,8 +388,8 @@ def main(page: ft.Page):
         # Functionality:
         # Continuously refreshes the scanner frame and the scan details.
         while scanner_running["value"]:
-            frame = get_processed_frame()
-            frame_bytes = frame_to_jpeg_bytes(frame)
+            frame = handlers.cvhandler.get_processed_frame()
+            frame_bytes = handlers.cvhandler.frame_to_jpeg_bytes(frame)
 
             if frame_bytes:
                 # CHANGED: old Flet version supports src, not src_base64
@@ -403,7 +397,7 @@ def main(page: ft.Page):
             else:
                 camera_image.src = EMPTY_IMG
 
-            scan = get_scan_data()
+            scan = handlers.cvhandler.get_scan_data()
             student_name_text.value = scan.get("student_name", "") or "Waiting for scan..."
             student_id_text.value = scan.get("student_id", "") or "Waiting for scan..."
 
@@ -693,7 +687,7 @@ def main(page: ft.Page):
             scanner_running["value"] = True
         else:
             scanner_running["value"] = False
-            release_camera()
+            handlers.cvhandler.release_camera()
 
         page.clean()
         page.add(build_shell())
@@ -707,7 +701,7 @@ def main(page: ft.Page):
         # Releases camera resources when the app window closes.
         if getattr(e, "data", "") == "close":
             scanner_running["value"] = False
-            release_camera()
+            handlers.cvhandler.release_camera()
 
     page.window.on_event = on_window_event
     navigate("dashboard")

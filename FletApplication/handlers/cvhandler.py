@@ -105,3 +105,30 @@ def capture_frames(page, image_control, on_scan):
             page.run_task(update_frame)
 
         time.sleep(1/30)
+
+def get_processed_frame():
+    retv, frame = camera.read()
+    if not retv:
+        return None
+    x1, x2, y1, y2 = get_roi_rect(frame)
+    roi = frame[y1:y2, x1:x2]
+    detected_id = extract_id(roi)
+    if detected_id:
+        draw_roi_rect(frame, color_grn)
+    else:
+        draw_roi_rect(frame, color_red)
+    return frame
+
+def frame_to_jpeg_bytes(frame):
+    ret, buffer = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, 60])
+    if ret:
+        return base64.b64encode(buffer).decode()
+    return None
+
+def get_scan_data(frame):
+    x1, x2, y1, y2 = get_roi_rect(frame)
+    roi = frame[y1:y2, x1:x2]
+    return extract_id(roi)
+
+def release_camera():
+    camera.release()
