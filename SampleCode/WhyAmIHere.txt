@@ -1,0 +1,1 @@
+A folder holding sample code from module documentations in order to prevent complete mental devastation for the developers.
