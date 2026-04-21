@@ -150,6 +150,7 @@ def get_attendance_log():
             INNER JOIN tbl_student st ON a.student_id = st.student_id
             INNER JOIN tbl_enrollment e ON e.student_id = st.student_id
             WHERE a.attendance_status NOT IN ('Absent')
+            ORDER BY date ASC, time ASC
         """
         
         curs.execute(sql)
@@ -175,7 +176,8 @@ def get_class_list():
         sql = """
             SELECT DISTINCT a.date, a.class_start, a.subject_id, i.instructor_name
             FROM tbl_attendance a, tbl_subjects_enrolled se
-            JOIN tbl_instructor i ON i.instructor_id = se.instructor_id 
+            JOIN tbl_instructor i ON i.instructor_id = se.instructor_id
+            ORDER BY date ASC, class_start ASC
         """
         
         curs.execute(sql)

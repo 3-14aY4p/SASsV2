@@ -135,7 +135,6 @@ def main(page: ft.Page):
         fit = ft.BoxFit.COVER,
     )
     camera_preview.src_base64 = ""
-    
     video_container = ft.Container(
         content = camera_preview,
         margin = ft.Margin(0, 0, 0, 60),
@@ -209,7 +208,6 @@ def main(page: ft.Page):
 
         page.update()
     
-    
     # Start camera thread
     threading.Thread(
         target = cv.capture_frames,
@@ -218,7 +216,6 @@ def main(page: ft.Page):
     ).start()
 
 
-    # TODO: Make these scrollable
     # Database Tables
     dt_attendance = ft.DataTable(
         align = ft.Alignment.CENTER,
@@ -270,10 +267,7 @@ def main(page: ft.Page):
                     ]
                 )
             )
-        
         page.update()
-    
-    # No filter applied
     def update_class_list():
         dt_classes.rows.clear()
         
@@ -291,13 +285,12 @@ def main(page: ft.Page):
                     ]
                 )
             )
-        
         page.update()
       
-    
     # TODO: Add filtering and sorting for class list
     def filter_class_list():
         pass
+    
     
     # TODO: Retrieve from database instead of manually listing
     # For dropdown options
@@ -429,9 +422,9 @@ def main(page: ft.Page):
     page_2 = ft.Container(
         content = ft.Column([
             dt_attendance, 
-        ], scroll= ft.ScrollMode.AUTO, expand = 2)
-,
-        margin = 20
+        ], scroll= ft.ScrollMode.AUTO, expand = 2),
+        margin = 20,
+        alignment = ft.Alignment.TOP_CENTER
     )
 
     # Class List page
@@ -664,7 +657,7 @@ def main(page: ft.Page):
             update_attendance_log()
         elif i == 2:
             current_page.content = page_3
-            update_class_list()                 # TODO: Add this function to be triggered after each new class
+            update_class_list()
         elif i == 3:
             current_page.content = page_4
         page.update()
@@ -696,7 +689,7 @@ def main(page: ft.Page):
         navbar,
 
         ft.SafeArea(
-            align = ft.Alignment.CENTER,
+            align = ft.Alignment.TOP_CENTER,
             expand = True,
             
             # Changeable content
