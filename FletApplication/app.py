@@ -1,4 +1,5 @@
 # Module/Library imports
+from cmath import exp
 import flet as ft
 import threading
 import time as t
@@ -78,7 +79,7 @@ def main(page: ft.Page):
         label = "",
         expand = True,
         height = 40,
-        border_color = ft.Colors.ON_SURFACE_VARIANT,
+        border_color = ft.Colors.SURFACE_BRIGHT,
         on_submit = lambda e: manual_attendance(e)
     )
 
@@ -168,16 +169,13 @@ def main(page: ft.Page):
                     if db.query_attendance(ret_string, schedule['sub'], datetime.now().date(), schedule['start']):
                         scan_status.value = "Previous attendance record found!"
                         scan_status.style.color = ft.Colors.RED
-                        return
-                    
-                    scan_status.value = "Attendance successfully recorded!"
-                    scan_status.style.color = ft.Colors.GREEN
-                    db.record_attendance(ret_string, schedule['sub'], schedule['prof_id'], schedule['start'], schedule['end'])
-                    
+                    else:                    
+                        scan_status.value = "Attendance successfully recorded!"
+                        scan_status.style.color = ft.Colors.GREEN
+                        db.record_attendance(ret_string, schedule['sub'], schedule['prof_id'], schedule['start'], schedule['end'])
                 else:
                     scan_status.value = "Student not enrolled in class!"
                     scan_status.style.color = ft.Colors.RED
-
         else:
             scan_status.value = "Waiting for scan..."
             scan_status.style.color = ft.Colors.SURFACE_BRIGHT
@@ -220,7 +218,7 @@ def main(page: ft.Page):
     ).start()
 
 
-    
+    # TODO: Make these scrollable
     # Database Tables
     dt_attendance = ft.DataTable(
         align = ft.Alignment.CENTER,
@@ -258,6 +256,8 @@ def main(page: ft.Page):
         dt_attendance.rows.clear()
         
         cols, rows = db.get_attendance_log()
+        
+        rows = reversed(rows)
         for row in rows:
             dt_attendance.rows.append(
                 ft.DataRow(
@@ -278,6 +278,8 @@ def main(page: ft.Page):
         dt_classes.rows.clear()
         
         cols, rows = db.get_class_list()
+        
+        rows = reversed(rows)
         for row in rows:
             dt_classes.rows.append(
                 ft.DataRow(
@@ -422,9 +424,13 @@ def main(page: ft.Page):
         ], margin = 30, spacing = 30, align = ft.Alignment.CENTER,)
     )
 
+
     # Attendance Log page
     page_2 = ft.Container(
-        content = dt_attendance,
+        content = ft.Column([
+            dt_attendance, 
+        ], scroll= ft.ScrollMode.AUTO, expand = 2)
+,
         margin = 20
     )
 
@@ -506,7 +512,7 @@ def main(page: ft.Page):
                         on_click = lambda e: new_sheet()
                     ),
                     dt_classes
-                ], spacing = 20,)
+                ], spacing = 20, scroll= ft.ScrollMode.AUTO, expand = 2)
             ], 
             vertical_alignment = ft.CrossAxisAlignment.START,
             margin = 20, 
@@ -691,6 +697,7 @@ def main(page: ft.Page):
 
         ft.SafeArea(
             align = ft.Alignment.CENTER,
+            expand = True,
             
             # Changeable content
             content = current_page
