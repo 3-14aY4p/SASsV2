@@ -37,7 +37,7 @@ def main(page: ft.Page):
             return time
         
         except ValueError as e:
-            page.show_dialog(ft.SnackBar(ft.Text("Please enter the correct format.")))
+            page.show_dialog(ft.SnackBar(ft.Text("Please enter the correct format.", color = ft.Colors.ON_SURFACE_VARIANT), bgcolor = ft.Colors.SURFACE_CONTAINER))
             return False
     def convert_date(date_str: str) -> date:
         format = "%Y/%m/%d"
@@ -46,7 +46,7 @@ def main(page: ft.Page):
             return date
         
         except ValueError as e:
-            page.show_dialog(ft.SnackBar(ft.Text("Please enter the correct format.")))
+            page.show_dialog(ft.SnackBar(ft.Text("Please enter the correct format.", color = ft.Colors.ON_SURFACE_VARIANT), bgcolor = ft.Colors.SURFACE_CONTAINER))
             return False
  
  
@@ -172,6 +172,7 @@ def main(page: ft.Page):
                         scan_status.value = "Attendance successfully recorded!"
                         scan_status.style.color = ft.Colors.GREEN
                         db.record_attendance(ret_string, schedule['sub'], schedule['prof_id'], schedule['start'], schedule['end'])
+                        page.show_dialog(ft.SnackBar(ft.Text("Attendance successfully recorded!", color = ft.Colors.ON_SURFACE_VARIANT), bgcolor = ft.Colors.SURFACE_CONTAINER))
                 else:
                     scan_status.value = "Student not enrolled in class!"
                     scan_status.style.color = ft.Colors.RED
@@ -188,7 +189,7 @@ def main(page: ft.Page):
     # Handle manual recording of attendance through text fields
     def manual_attendance(e: str):
         if not all(schedule.values()):
-            page.show_dialog(ft.SnackBar(ft.Text("Please create schedule first!")))
+            page.show_dialog(ft.SnackBar(ft.Text("Please create schedule first!", color = ft.Colors.ON_SURFACE_VARIANT), bgcolor = ft.Colors.SURFACE_CONTAINER))
             return
         
         student = db.query_student_id(e.data)
@@ -197,14 +198,14 @@ def main(page: ft.Page):
             if db.query_subject_enrollment(e.data, schedule['sub'], schedule['prof_id']):
                 if not db.query_attendance(e.data, schedule['sub'], datetime.now().date(), schedule['start']):
                     db.record_attendance(e.data, schedule['sub'], schedule['prof_id'], schedule['start'], schedule['end'])
-                    page.show_dialog(ft.SnackBar(ft.Text("Attendance successfully recorded!")))
+                    page.show_dialog(ft.SnackBar(ft.Text("Attendance successfully recorded!", color = ft.Colors.ON_SURFACE_VARIANT), bgcolor = ft.Colors.SURFACE_CONTAINER))
                     manual_input_field.value = ""
                 else:
-                    page.show_dialog(ft.SnackBar(ft.Text("Attendance already recorded.")))
+                    page.show_dialog(ft.SnackBar(ft.Text("Attendance already recorded.", color = ft.Colors.ON_SURFACE_VARIANT), bgcolor = ft.Colors.SURFACE_CONTAINER))
             else:
-                page.show_dialog(ft.SnackBar(ft.Text("Student not enrolled in class.")))
+                page.show_dialog(ft.SnackBar(ft.Text("Student not enrolled in class.", color = ft.Colors.ON_SURFACE_VARIANT), bgcolor = ft.Colors.SURFACE_CONTAINER))
         else:
-            page.show_dialog(ft.SnackBar(ft.Text("Invalid ID.")))
+            page.show_dialog(ft.SnackBar(ft.Text("Invalid ID.", color = ft.Colors.ON_SURFACE_VARIANT), bgcolor = ft.Colors.SURFACE_CONTAINER))
 
         page.update()
     
@@ -245,9 +246,18 @@ def main(page: ft.Page):
             ft.DataColumn(ft.Text("START TIME")),
             ft.DataColumn(ft.Text("SUBJECT CODE")),
             ft.DataColumn(ft.Text("INSTRUCTOR")),
+            ft.DataColumn(ft.Text("")),
         ],
         rows = [], 
     )
+    
+    # TODO: Add functionality to expand on class item 
+    expand_item_button = ft.IconButton(
+        icon = ft.Icons.ARROW_OUTWARD,
+        on_click = lambda e: expand_class_item()
+    )
+    def expand_class_item():
+        pass
     
     def update_attendance_log():
         dt_attendance.rows.clear()
@@ -282,6 +292,7 @@ def main(page: ft.Page):
                         ft.DataCell(ft.Text(str(row['class_start']))),
                         ft.DataCell(ft.Text(row['subject_id'])),
                         ft.DataCell(ft.Text(row['instructor_name'])),
+                        ft.DataCell(expand_item_button)
                     ]
                 )
             )
@@ -290,7 +301,6 @@ def main(page: ft.Page):
     # TODO: Add filtering and sorting for class list
     def filter_class_list():
         pass
-    
     
     # TODO: Retrieve from database instead of manually listing
     # For dropdown options
@@ -315,17 +325,57 @@ def main(page: ft.Page):
         ft.DropdownOption(text = 'Dr. R.A. Torres', key = '008'),
     ]
 
+    # new sheet variables
+    sched_start_field = ft.TextField(
+        border_color = ft.Colors.SURFACE_BRIGHT,
+        width = 200,
+        height = 50,
+        border_radius = 10,
+        label = ft.Text("Start Time"),
+        hint_text = "07:30",
+    )
+    sched_end_field = ft.TextField(
+        border_color = ft.Colors.SURFACE_BRIGHT,
+        width = 200,
+        height = 50,
+        border_radius = 10,
+        label = ft.Text("End Time"),
+        hint_text = "09:30",
+    )
+    subject_dropdown = ft.Container(
+        width = 420,
+        height = 50,
+        content = ft.Dropdown(
+            expand = True,
+            bgcolor = ft.Colors.SURFACE_CONTAINER_HIGH,
+            border_color = ft.Colors.SURFACE_BRIGHT,
+            label = ft.Text("Subject"),
+            options = subject_options,
+        )
+    )
+    instructor_dropdown = ft.Container(
+        width = 420,
+        height = 50,
+        content = ft.Dropdown(
+            expand = True,
+            bgcolor = ft.Colors.SURFACE_CONTAINER_HIGH,
+            border_color = ft.Colors.SURFACE_BRIGHT,
+            label = ft.Text("Instructor"),
+            options = instructor_options,
+        )
+    )
+
+
 
     # ID Scanner page
     page_1 = ft.Container(
         ft.Column([
             ft.Container(
-                align = ft.Alignment.CENTER,
+                align = ft.Alignment.TOP_CENTER,
                 width = WIDTH,
-                height = 80,
+                height = 70,
                 bgcolor = ft.Colors.SURFACE_CONTAINER,
                 border_radius = 20,
-                expand = True,
                 content = ft.Row([
                     schedule_details[0],
                     schedule_details[1],
@@ -360,7 +410,7 @@ def main(page: ft.Page):
                                         align = ft.Alignment.CENTER,
                                         style = ft.TextStyle(
                                             weight = ft.FontWeight.BOLD,
-                                            size = 25,
+                                            size = 22,
                                             color = ft.Colors.ON_SURFACE_VARIANT
                                         )
                                     ),
@@ -372,7 +422,7 @@ def main(page: ft.Page):
                                         align = ft.Alignment.CENTER,
                                         style = ft.TextStyle(
                                             weight = ft.FontWeight.BOLD,
-                                            size = 25,
+                                            size = 22,
                                             color = ft.Colors.ON_SURFACE_VARIANT
                                         )
                                     ),
@@ -390,7 +440,7 @@ def main(page: ft.Page):
                                         align = ft.Alignment.CENTER,
                                         style = ft.TextStyle(
                                             weight = ft.FontWeight.BOLD,
-                                            size = 25,
+                                            size = 22,
                                             color = ft.Colors.ON_SURFACE_VARIANT
                                         )
                                     ),
@@ -414,9 +464,8 @@ def main(page: ft.Page):
                     )
                 )
             ], spacing = 30, vertical_alignment = ft.CrossAxisAlignment.START, align = ft.Alignment.CENTER)
-        ], margin = 30, spacing = 30, align = ft.Alignment.CENTER,)
+        ], margin = ft.Margin(30, 10, 30, 30), spacing = 30, align = ft.Alignment.CENTER,)
     )
-
 
     # Attendance Log page
     page_2 = ft.Container(
@@ -502,7 +551,8 @@ def main(page: ft.Page):
                         width = 250,
                         height = 40,
                         content = ft.Text("NEW ATTENDANCE SHEET"),
-                        on_click = lambda e: new_sheet()
+                        on_click = lambda e: new_sheet(),
+                        align = ft.Alignment.TOP_RIGHT
                     ),
                     dt_classes
                 ], spacing = 20, scroll= ft.ScrollMode.AUTO, expand = 2)
@@ -514,50 +564,7 @@ def main(page: ft.Page):
     )
 
     # Dashboard page
-    page_4 = ft.Container(ft.Text(value="DASHBOARD HERE!!!"))
-    
-    
-    
-    # new sheet variables
-    sched_start_field = ft.TextField(
-        border_color = ft.Colors.SURFACE_BRIGHT,
-        width = 200,
-        height = 50,
-        border_radius = 10,
-        label = ft.Text("Start Time"),
-        hint_text = "07:30",
-    )
-    sched_end_field = ft.TextField(
-        border_color = ft.Colors.SURFACE_BRIGHT,
-        width = 200,
-        height = 50,
-        border_radius = 10,
-        label = ft.Text("End Time"),
-        hint_text = "09:30",
-    )
-    subject_dropdown = ft.Container(
-        width = 420,
-        height = 50,
-        content = ft.Dropdown(
-            expand = True,
-            bgcolor = ft.Colors.SURFACE_CONTAINER_HIGH,
-            border_color = ft.Colors.SURFACE_BRIGHT,
-            label = ft.Text("Subject"),
-            options = subject_options,
-        )
-    )
-    instructor_dropdown = ft.Container(
-        width = 420,
-        height = 50,
-        content = ft.Dropdown(
-            expand = True,
-            bgcolor = ft.Colors.SURFACE_CONTAINER_HIGH,
-            border_color = ft.Colors.SURFACE_BRIGHT,
-            label = ft.Text("Instructor"),
-            options = instructor_options,
-        )
-    )
-    
+    page_4 = ft.Container()
     
     # New sheet page
     page_5 = ft.Column([
@@ -599,8 +606,11 @@ def main(page: ft.Page):
         horizontal_alignment = ft.CrossAxisAlignment.CENTER,
         margin = ft.Margin(0, 60, 0, 0), spacing = 20)
     
+    # TODO: Class item page
+    page_6 = ft.Column()
+    
     # Page Container
-    current_page = ft.Container(content = page_1)
+    current_page = ft.Container(content = page_4)
 
 
     # New Sheet button
@@ -621,7 +631,7 @@ def main(page: ft.Page):
     # Confirm new schedule
     def confirm_schedule():
         if sched_start_field.value == "" or sched_end_field.value == "" or subject_dropdown.content.value == None or instructor_dropdown.content.value == None:
-            page.show_dialog(ft.SnackBar(ft.Text("Please don't leave fields empty.")))
+            page.show_dialog(ft.SnackBar(ft.Text("Please don't leave fields empty.", color = ft.Colors.ON_SURFACE_VARIANT), bgcolor = ft.Colors.SURFACE_CONTAINER))
         
         elif convert_time(sched_start_field.value) == False or convert_time(sched_end_field.value) == False:
             return
@@ -637,7 +647,8 @@ def main(page: ft.Page):
             
             current_page.content = page_3
 
-    def update_page_values():
+    # update displayed schedule in scanner page
+    def update_schedule_values():
         schedule_details[0].value = f"START OF SESSION:      {schedule['start']}"
         schedule_details[1].value = f"END OF SESSION:      {schedule['end']}"
         schedule_details[2].value = f"SUBJECT:      {schedule['sub']}"
@@ -651,7 +662,7 @@ def main(page: ft.Page):
         i = e.control.selected_index
         if i == 0:
             current_page.content = page_1
-            update_page_values()
+            update_schedule_values()
         elif i == 1:
             current_page.content = page_2
             update_attendance_log()
@@ -680,7 +691,7 @@ def main(page: ft.Page):
             label = "Dashboard"
         ),],
         on_change = set_page,
-        selected_index = 0,
+        selected_index = 3,
         bgcolor = ft.Colors.SURFACE_CONTAINER_HIGH
     )
     # page.navigation_bar = navbar

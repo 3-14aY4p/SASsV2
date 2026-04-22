@@ -113,7 +113,7 @@ def record_attendance(student_id: str, subject_id: str, instructor_id: str, clas
         elif time >= class_start:
             status = "Late"
         else:
-            status = "Present"
+            status = "On Time"
 
         # date and time is set to input current date and time upon recording
         sql = """
