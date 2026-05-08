@@ -17,8 +17,9 @@ def main(page: ft.Page):
     
     WIDTH, HEIGHT = 1280, 780
 
-    page.window_resizable = False
+    page.window.resizable = False
     page.window.minimizable = False
+    page.window.maximizable = False
     page.window.width  = WIDTH
     page.window.height = HEIGHT
     
@@ -35,7 +36,7 @@ def main(page: ft.Page):
             return time
         
         except ValueError as e:
-            page.show_dialog(ft.SnackBar(ft.Text("Please enter the correct format.", color = ft.Colors.ON_SURFACE_VARIANT), bgcolor = ft.Colors.SURFACE_CONTAINER))
+            error_snackbar("ERROR: Invalid format.")
             return False
     def convert_date(date_str: str) -> date:
         format = "%Y/%m/%d"
@@ -44,22 +45,44 @@ def main(page: ft.Page):
             return date
         
         except ValueError as e:
-            page.show_dialog(ft.SnackBar(ft.Text("Please enter the correct format.", color = ft.Colors.ON_SURFACE_VARIANT), bgcolor = ft.Colors.SURFACE_CONTAINER))
+            error_snackbar("ERROR: Invalid format.")
             return False
  
  
     #* VARIABLES FOR THE CURRENT USER (Instructor details)
-    current_user: str = None
+    
+    current_user_name: str = None
+    current_user_id: str = None
+ 
+ 
+    #* VARIABLES FOR LOGIN PAGE
+    
+    user_id_field = ft.TextField(
+        border_color = ft.Colors.SURFACE_BRIGHT,
+        width = 480,
+        height = 50,
+        border_radius = 10,
+        label = ft.Text("ID Number"),
+    )
+    password_field = ft.TextField(
+        border_color = ft.Colors.SURFACE_BRIGHT,
+        width = 480,
+        height = 50,
+        border_radius = 10,
+        label = ft.Text("Password"),
+        password = True,
+    )
  
 
     #* DYNAMIC VARIABLES FOR ATTENDANCE LOGGING
-    schedule = {
+    
+    schedule: dict = {
         "start": None,
         "end": None,
         "sub": None,
         "sect": None
     }
-    schedule_details = [
+    schedule_details: list = [
         ft.Text(
             value = f"START OF SESSION:      {schedule["start"]}", 
             style = ft.TextStyle(
@@ -198,30 +221,13 @@ def main(page: ft.Page):
     # TODO: Retrieve schedule for specific section and subject
     # For dropdown options
     subject_options = [
-        ft.DropdownOption(text = 'ICT-111'),
-        ft.DropdownOption(text = 'ICT-107'),
-        ft.DropdownOption(text = 'ICT-114'),
-        ft.DropdownOption(text = 'CS-101'),
-        ft.DropdownOption(text = 'ICT-110'),
-        ft.DropdownOption(text = 'ICT-112'),
-        ft.DropdownOption(text = 'PE-4'),
-        ft.DropdownOption(text = 'GE-ELEC-1'),
+
     ]
     section_options = [
-        ft.DropdownOption(text = 'BSCS 1A'),
-        ft.DropdownOption(text = 'BSCS 1B'),
-        ft.DropdownOption(text = 'BSCS 2A'),
-        ft.DropdownOption(text = 'BSCS 2B'),
-        ft.DropdownOption(text = 'BSCS 3A'),
-        ft.DropdownOption(text = 'BSCS 3B'),
-        ft.DropdownOption(text = 'BSCS 4A'),
-        ft.DropdownOption(text = 'BSCS 4B'),
+        
     ]
     timeslot_options = [ 
-        ft.DropdownOption(text = '1'),
-        ft.DropdownOption(text = '2'),
-        ft.DropdownOption(text = '3'),
-        ft.DropdownOption(text = '4'),
+
     ]
     
     session_start_field = ft.TextField(
@@ -296,6 +302,25 @@ def main(page: ft.Page):
     timeslot_field = ft.Container(content = timeslot_dropdown)
 
 
+    def error_snackbar(error_text: str):
+        page.show_dialog(ft.SnackBar(ft.Text(error_text, 
+                color = ft.Colors.ON_SURFACE_VARIANT), 
+                bgcolor = ft.Colors.SURFACE_CONTAINER))
+
+
+    #* LOGIN PAGE FUNCTIONS
+    
+    def validate_user():
+        if user_id_field.value == "" or password_field.value == "":
+            error_snackbar("ERROR: Empty fields found.")
+        
+        # TODO: Detect incorrect user_id
+        # TODO: Detect incorrect password
+        
+        navigator.content = navbar
+        current_page.content = page_1
+
+
     #* SCANNER PAGE FUNCTIONS
     # FIXME: Cater scanning to database changes
 
@@ -334,51 +359,16 @@ def main(page: ft.Page):
 
     def update_attendance_log():
         pass
-        # dt_attendance.rows.clear()
-        
-        # cols, rows = db.get_attendance_log()
-        
-        # rows = reversed(rows)
-        # for row in rows:
-        #     dt_attendance.rows.append(
-        #         ft.DataRow(
-        #             cells = [
-        #                 ft.DataCell(ft.Text(str(row['date']))),
-        #                 ft.DataCell(ft.Text(str(row['time']))),
-        #                 ft.DataCell(ft.Text(row['student_name'])),
-        #                 ft.DataCell(ft.Text(f"{row['course']} {row['year_level']}{row['section']}")),
-        #                 ft.DataCell(ft.Text(row['attendance_status'])),
-        #             ]
-        #         )
-        #     )
-        # page.update()
     
     # TODO: Change 'instructor' to 'section'
     def update_class_list():
         pass
-        # dt_classes.rows.clear()
-        
-        # cols, rows = db.get_class_list()
-        
-        # rows = reversed(rows)
-        # for row in rows:
-        #     dt_classes.rows.append(
-        #         ft.DataRow(
-        #             cells = [
-        #                 ft.DataCell(ft.Text(str(row['date']))),
-        #                 ft.DataCell(ft.Text(str(row['class_start']))),
-        #                 ft.DataCell(ft.Text(row['subject_id'])),
-        #                 ft.DataCell(ft.Text(row['instructor_name'])),
-        #                 ft.DataCell(expand_item_button)
-        #             ]
-        #         )
-        #     )
-        # page.update()
       
     # TODO: Add filtering and sorting for class list
     def filter_class_list():
         pass
     
+    # TODO: Expand and view specific class items
     def expand_class_item():
         pass
     
@@ -419,8 +409,8 @@ def main(page: ft.Page):
     # Confirm new schedule
     def confirm_schedule():
         if session_start_field.value == "" or session_end_field.value == "" or subject_dropdown.content.value == None or section_dropdown.content.value == None:
-            page.show_dialog(ft.SnackBar(ft.Text("Please don't leave fields empty.", color = ft.Colors.ON_SURFACE_VARIANT), bgcolor = ft.Colors.SURFACE_CONTAINER))
-        
+            error_snackbar("ERROR: Empty fields found.")
+            
         elif convert_time(session_start_field.value) == False or convert_time(session_end_field.value) == False:
             return
         
@@ -453,8 +443,36 @@ def main(page: ft.Page):
             current_page.content = page_4
         page.update()
 
+
     # TODO: Login page
-    page_0 = ft.Container()
+    page_0 = ft.Container(
+        bgcolor = ft.Colors.SURFACE_CONTAINER,
+        border_radius = 20,
+        align = ft.Alignment.CENTER,
+        width = 440,
+        height = 360,
+        content = ft.Column([
+            ft.Text(value = "USER LOGIN",
+            style = ft.TextStyle(
+                weight = ft.FontWeight.BOLD,
+                size = 20,
+                color = ft.Colors.ON_SURFACE_VARIANT
+            )),
+            user_id_field,
+            password_field,
+            ft.ElevatedButton(
+                content = "Log In",
+                width = 180,
+                height = 50,
+                align = ft.Alignment.BOTTOM_RIGHT,
+                style = ft.ButtonStyle(
+                    shape = ft.RoundedRectangleBorder(radius = 10),
+                    bgcolor = ft.Colors.SURFACE_CONTAINER_HIGH
+                ),
+                on_click = lambda e: validate_user()
+            ),
+        ], align = ft.Alignment.TOP_LEFT, margin = ft.Margin(45, 45, 45, 45), spacing = 30)
+    )
 
     # ID Scanner page
     page_1 = ft.Container(
@@ -719,17 +737,17 @@ def main(page: ft.Page):
             icon = ft.Icons.ANALYTICS,
             label = "Dashboard"
         ),],
-        on_change = set_page,
+        on_change = lambda e: set_page(e),
         selected_index = 0,
         bgcolor = ft.Colors.SURFACE_CONTAINER_HIGH
     )
-    navigator = ft.Container(content = navbar)
-    current_page = ft.Container(content = page_1)
+    navigator = ft.Container(content = None)
+    current_page = ft.Container(content = page_0)
     
     
     
     page.add(
-        navigator, # TODO: Set to 'None' once the Login gets sorted
+        navigator,
         ft.SafeArea(
             align = ft.Alignment.TOP_CENTER,
             expand = True,

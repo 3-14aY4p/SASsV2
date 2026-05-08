@@ -115,7 +115,7 @@ def query_subject_enrollment(student_id: str, subject_id: str, instructor_id: st
         conn.close()
 
 # validates if student has has already recorded PRESENT or LATE for the session
-def query_attendance(student_id: str, subject_id: str, session_date: date, session_start: time) -> bool:
+def query_attendance(student_id: str, subject_id: str, instructor_id: str, session_date: date, session_start: time) -> bool:
     conn = get_connection()
     if not conn:
         return False
@@ -128,12 +128,13 @@ def query_attendance(student_id: str, subject_id: str, session_date: date, sessi
             FROM attendance
             WHERE student_id   = %s
               AND subject_id   = %s
+              AND instructor_id   = %s
               AND date         = %s
               AND session_start = %s
               AND status IN ('on time', 'late')
             LIMIT 1
             """,
-            (student_id, subject_id, session_date, session_start)
+            (student_id, subject_id, instructor_id, session_date, session_start)
         )
         return curs.fetchone() is not None
 
@@ -143,3 +144,15 @@ def query_attendance(student_id: str, subject_id: str, session_date: date, sessi
 
     finally: 
         conn.close()
+
+
+
+#* QUERIES FOR DATA RETRIEVALS
+
+# TODO: Retrieve LOGIN credentials
+# TODO: Populate Attendance datatables
+# TODO: Populate Class datatables
+# TODO: Retrieve specific class/session attendance
+# TODO: Retrieve instructor's subjects
+# TODO: Retrieve sections under the instructor
+# TODO: Retrieve instructor schedule on subject

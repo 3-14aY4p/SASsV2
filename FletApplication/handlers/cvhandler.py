@@ -55,7 +55,6 @@ def extract_id(roi):
     text = pytesseract.image_to_string(p_img, config=conf)
     text = text.strip()
 
-    # FIXME: correct the program in mistaking -I as 4
     if re.match(r"\d{4}-\d{4}4", text):
         text = text[:-1] + "-I"
 
