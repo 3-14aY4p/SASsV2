@@ -1,4 +1,4 @@
-import mysql.connector, csv
+import mysql.connector
 from datetime import datetime, timedelta, time, date
 
 
