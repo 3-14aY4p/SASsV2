@@ -66,14 +66,14 @@ def extract_id(roi):
         return None
 
 # main camera loop
-def capture_frames(page, image_control, on_scan):
+def capture_frames(page, image_control, on_scan, stop_event):
     camera.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
     camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
     camera.set(cv2.CAP_PROP_FPS, 30)
 
     last_detected_id = None
 
-    while True:
+    while not stop_event.is_set():
         retv, frame = camera.read()
         if not retv:
             time.sleep(1/30)
@@ -104,3 +104,6 @@ def capture_frames(page, image_control, on_scan):
             page.run_task(update_frame)
 
         time.sleep(1/30)
+
+    # release camera when stop event is set
+    camera.release()

@@ -75,7 +75,7 @@ def main(page: ft.Page):
  
 
     #* DYNAMIC VARIABLES FOR ATTENDANCE LOGGING
-    
+
     schedule: dict = {
         "start": None,
         "end": None,
@@ -333,16 +333,22 @@ def main(page: ft.Page):
         pass
     
     # TODO: Start and End camera thread properly
+
+    # Switch for controlling camera thread
+    _scanner_stop_event = threading.Event()
+
+
     # Start camera thread
     def start_scanner_thread():
+        _scanner_stop_event.clear()  # Clear and reset threading
         threading.Thread(
             target = cv.capture_frames,
-            args = (page, camera_preview, on_scan),
+            args = (page, camera_preview, on_scan, _scanner_stop_event),
             daemon = True, 
         ).start()
 
     def kill_scanner_thread():
-        pass
+        _scanner_stop_event.set() # Signal the thread to stop
 
     # Update displayed schedule in scanner page
     def update_schedule_values():
@@ -433,13 +439,17 @@ def main(page: ft.Page):
         if i == 0:
             current_page.content = page_1
             update_schedule_values()
+            start_scanner_thread()  # Start camera thread when entering scanner page
         elif i == 1:
+            kill_scanner_thread() # Stop camera thread before leaving page
             current_page.content = page_2
             update_attendance_log()
         elif i == 2:
+            kill_scanner_thread() # Stop camera thread before leaving page
             current_page.content = page_3
             update_class_list()
         elif i == 3:
+            kill_scanner_thread() # Stop camera thread before leaving page
             current_page.content = page_4
         page.update()
 
@@ -758,10 +768,15 @@ def main(page: ft.Page):
     )
     page.update()
 
+    # moved camera release to a function to ensure it runs before app closes
+    def close_app():
+        kill_scanner_thread() # Camera thread stop before releasing camera
+        cv.camera.release()
+
+    page.on_close = close_app
 
 
 # Run Flet app (Flutter my beloved!!)
 if __name__ == "__main__":
     ft.run(main)
-    cv.camera.release()
     
