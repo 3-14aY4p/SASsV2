@@ -9,6 +9,7 @@ import handlers.dbhandler as db
 import handlers.cvhandler as cv
 
 
+
 # Main structure; We gotta put it all here!!
 def main(page: ft.Page):
     # Page settings
@@ -38,6 +39,7 @@ def main(page: ft.Page):
         except ValueError as e:
             error_snackbar("ERROR: Invalid format.")
             return False
+        
     def convert_date(date_str: str) -> date:
         format = "%Y/%m/%d"
         try:
@@ -51,26 +53,27 @@ def main(page: ft.Page):
  
     #* VARIABLES FOR THE CURRENT USER (Instructor details)
     
-    current_user_name: str = None
-    current_user_id: str = None
+    current_user_id: str = ""
+    current_user_name: str = ""
  
  
     #* VARIABLES FOR LOGIN PAGE
     
     user_id_field = ft.TextField(
         border_color = ft.Colors.SURFACE_BRIGHT,
-        width = 480,
+        width = 315,
         height = 50,
         border_radius = 10,
         label = ft.Text("ID Number"),
     )
     password_field = ft.TextField(
         border_color = ft.Colors.SURFACE_BRIGHT,
-        width = 480,
+        width = 315,
         height = 50,
         border_radius = 10,
         label = ft.Text("Password"),
         password = True,
+        on_submit = lambda e: login_user()
     )
  
 
@@ -81,6 +84,12 @@ def main(page: ft.Page):
         "end": None,
         "sub": None,
         "sect": None
+    }
+    schedule_selection: dict = {
+        "start": None,
+        "end": None,
+        "sub": None,
+        "sect": {}
     }
     schedule_details: list = [
         ft.Text(
@@ -116,7 +125,6 @@ def main(page: ft.Page):
             )
         ),
     ]
-
 
     #* SCANNER PAGE VARIABLES
     # FIXME: Constant flickering of camera
@@ -220,16 +228,10 @@ def main(page: ft.Page):
     # TODO: Retrieve from database instead of manually listing
     # TODO: Retrieve schedule for specific section and subject
     # For dropdown options
-    subject_options = [
+    subject_options = []
+    section_options = []
+    timeslot_options = []
 
-    ]
-    section_options = [
-        
-    ]
-    timeslot_options = [ 
-
-    ]
-    
     session_start_field = ft.TextField(
         border_color = ft.Colors.SURFACE_BRIGHT,
         width = 200,
@@ -260,17 +262,6 @@ def main(page: ft.Page):
         ],
         on_change = lambda e: on_session_type_change(e),
     )
-    subject_dropdown = ft.Container(
-        width = 420,
-        height = 50,
-        content = ft.Dropdown(
-            expand = True,
-            bgcolor = ft.Colors.SURFACE_CONTAINER_HIGH,
-            border_color = ft.Colors.SURFACE_BRIGHT,
-            label = ft.Text("Subject"),
-            options = subject_options,
-        )
-    )
     section_dropdown = ft.Container(
         width = 420,
         height = 50,
@@ -280,6 +271,19 @@ def main(page: ft.Page):
             border_color = ft.Colors.SURFACE_BRIGHT,
             label = ft.Text("Section"),
             options = section_options,
+            on_select = lambda e: on_section_select(e),
+        )
+    )
+    subject_dropdown = ft.Container(
+        width = 420,
+        height = 50,
+        content = ft.Dropdown(
+            expand = True,
+            bgcolor = ft.Colors.SURFACE_CONTAINER_HIGH,
+            border_color = ft.Colors.SURFACE_BRIGHT,
+            label = ft.Text("Subject"),
+            options = subject_options,
+            on_select = lambda e: on_subject_select(e)
         )
     )
     timeslot_dropdown = ft.Container(
@@ -291,6 +295,7 @@ def main(page: ft.Page):
             border_color = ft.Colors.SURFACE_BRIGHT,
             label = ft.Text("Timeslot"),
             options = timeslot_options,
+            on_select = lambda e: on_timeslot_select(e)
         )
     )
     manual_timeslots = ft.Container(
@@ -310,15 +315,41 @@ def main(page: ft.Page):
 
     #* LOGIN PAGE FUNCTIONS
     
-    def validate_user():
+    def clear_login_fields():
+        user_id_field.value = ""
+        password_field.value = ""
+    
+    def login_user():
+        nonlocal current_user_id, current_user_name
+        
         if user_id_field.value == "" or password_field.value == "":
             error_snackbar("ERROR: Empty fields found.")
+            return
         
-        # TODO: Detect incorrect user_id
-        # TODO: Detect incorrect password
+        userid: str = user_id_field.value
+        passwd: str = password_field.value
         
-        navigator.content = navbar
-        current_page.content = page_1
+        usernm = db.query_instructor_id(userid, passwd)
+        if not usernm:
+            error_snackbar("Incorrect USER ID or PASSWORD.")
+            return
+        else:
+            clear_login_fields()
+            
+            current_user_id = userid
+            current_user_name = usernm
+            
+            navigator.content = navbar
+            current_page.content = page_1
+
+    def logout_user():
+        nonlocal current_user_id, current_user_name
+        
+        current_user_id = ""
+        current_user_name = ""
+        
+        navigator.content = None
+        current_page.content = page_0
 
 
     #* SCANNER PAGE FUNCTIONS
@@ -332,17 +363,26 @@ def main(page: ft.Page):
     def manual_attendance(e: str):
         pass
     
-    # TODO: Start and End camera thread properly
+    #* CAMERA THREAD FUNCTIONS
+
+    # Switch for controlling camera thread
+    _scanner_stop_event = threading.Event()
+
     # Start camera thread
     def start_scanner_thread():
+        if schedule['start'] == None or schedule['end'] == None or schedule['sub'] == None or schedule['sect'] == None:
+            return
+        
+        _scanner_stop_event.clear()  # Clear and reset threading
         threading.Thread(
             target = cv.capture_frames,
-            args = (page, camera_preview, on_scan),
+            args = (page, camera_preview, on_scan, _scanner_stop_event),
             daemon = True, 
         ).start()
 
+    # End thread
     def kill_scanner_thread():
-        pass
+        _scanner_stop_event.set() # Signal the thread to stop
 
     # Update displayed schedule in scanner page
     def update_schedule_values():
@@ -371,12 +411,63 @@ def main(page: ft.Page):
     # TODO: Expand and view specific class items
     def expand_class_item():
         pass
+
+    def update_sections_list():
+        section_options.clear()
+        
+        blocks = db.get_instructor_sections(current_user_id)
+        if not blocks:
+            return
+        
+        # FIXME: Stored as string,
+        for block in blocks:
+            section_options.append(
+                ft.DropdownOption(
+                    text = f"{block['course']} {block['year']}{block['section']}",
+                    data = block
+                )
+            )
+        
+    def update_subjects_list():
+        subject_options.clear()
+        
+        subjects = db.get_instructor_subjects(current_user_id)
+        if not subjects:
+            return
+        
+        for subject in subjects:
+            subject_options.append(
+                ft.Dropdown(text = subject, key = subject)
+            )
     
+    def update_schedules_list():
+        timeslot_options.clear()
+        
+        timeslots = db.get_instructor_schedules(current_user_id, schedule_selection['sub'], schedule_selection['sect'])
+        if not timeslots:
+            return
+        
+        for slot in timeslots:
+            timeslot_options.append(
+                ft.Dropdown(text = slot['label'], key = [slot['start'], slot['end']])
+                data = {
+                    "start": slot['start'], 
+                    "end": slot['end']
+                }
+                # FIXME: retrieve dict
+            )
+        
 
     #* FUNCTIONS FOR CREATING NEW SESSIONS
 
+    # New session based on current schedule
+    def quick_add_session():
+        pass
+
     # New Sheet button
     def new_session():
+        update_sections_list()
+
         current_page.content = page_5
     
     # For session_type_toggle
@@ -406,6 +497,26 @@ def main(page: ft.Page):
         current_page.content = page_3
         clear_sheet_values()
 
+    # Select section
+    def on_section_select(e: ft.ControlEvent):
+        sect_dict = next((o.data for o in section_options if o.text == e.data), e.data)
+        
+        schedule_selection['sect'] = sect_dict
+        update_schedules_list()
+    
+    # Select subject
+    def on_subject_select(e: ft.ControlEvent):
+        schedule_selection['sub'] = e.data
+        update_schedules_list()
+    
+    # Select timeslot
+    def on_timeslot_focus(e: ft.ControlEvent):
+        if section_dropdown.content.value == "" or section_dropdown.content.value == "":
+            error_snackbar("Please select Section and Subject first.")
+            return
+        
+        pass
+
     # Confirm new schedule
     def confirm_schedule():
         if session_start_field.value == "" or session_end_field.value == "" or subject_dropdown.content.value == None or section_dropdown.content.value == None:
@@ -415,10 +526,10 @@ def main(page: ft.Page):
             return
         
         else:
-            schedule['start'] = convert_time(session_start_field.value)
-            schedule['end'] = convert_time(session_end_field.value)
-            schedule['sub'] = subject_dropdown.content.value
-            schedule['sect'] = section_dropdown.content.text
+            # schedule['start'] = convert_time(session_start_field.value)
+            # schedule['end'] = convert_time(session_end_field.value)
+            # schedule['sub'] = subject_dropdown.content.value
+            # schedule['sect'] = section_dropdown.content.text
             
             clear_sheet_values()
             
@@ -431,20 +542,24 @@ def main(page: ft.Page):
     def set_page(e):
         i = e.control.selected_index
         if i == 0:
+            start_scanner_thread()
             current_page.content = page_1
             update_schedule_values()
         elif i == 1:
+            kill_scanner_thread()
             current_page.content = page_2
             update_attendance_log()
         elif i == 2:
+            kill_scanner_thread()
             current_page.content = page_3
             update_class_list()
         elif i == 3:
+            kill_scanner_thread()
             current_page.content = page_4
         page.update()
 
 
-    # TODO: Login page
+    # Login page
     page_0 = ft.Container(
         bgcolor = ft.Colors.SURFACE_CONTAINER,
         border_radius = 20,
@@ -458,18 +573,26 @@ def main(page: ft.Page):
                 size = 20,
                 color = ft.Colors.ON_SURFACE_VARIANT
             )),
-            user_id_field,
-            password_field,
-            ft.ElevatedButton(
-                content = "Log In",
-                width = 180,
+            ft.Row([
+                ft.Icon(ft.Icons.PERSON),
+                user_id_field,
+            ]),
+            ft.Row([
+                ft.Icon(ft.Icons.LOCK),
+                password_field,
+            ]),
+            ft.Button(
+                # icon = ft.Icons.KEY,
+                content = "LOG IN",
+                width = 160,
                 height = 50,
                 align = ft.Alignment.BOTTOM_RIGHT,
                 style = ft.ButtonStyle(
                     shape = ft.RoundedRectangleBorder(radius = 10),
-                    bgcolor = ft.Colors.SURFACE_CONTAINER_HIGH
+                    bgcolor = ft.Colors.SURFACE_CONTAINER_HIGH,
+                    elevation = 10
                 ),
-                on_click = lambda e: validate_user()
+                on_click = lambda e: login_user()
             ),
         ], align = ft.Alignment.TOP_LEFT, margin = ft.Margin(45, 45, 45, 45), spacing = 30)
     )
@@ -477,9 +600,11 @@ def main(page: ft.Page):
     # ID Scanner page
     page_1 = ft.Container(
         ft.Column([
-            ft.Container(
+            ft.Row([
+                ft.Container(
                 align = ft.Alignment.TOP_CENTER,
-                width = WIDTH,
+                alignment = ft.Alignment.CENTER,
+                width = WIDTH - 150,
                 height = 70,
                 bgcolor = ft.Colors.SURFACE_CONTAINER,
                 border_radius = 20,
@@ -490,6 +615,15 @@ def main(page: ft.Page):
                     schedule_details[3],
                 ], spacing = 90, alignment = ft.CrossAxisAlignment.CENTER)
             ),
+            ft.IconButton(
+                icon = ft.Icons.CLASS_OUTLINED,
+                align = ft.Alignment.CENTER_LEFT,
+                style = ft.ButtonStyle(
+                    bgcolor = ft.Colors.SURFACE_CONTAINER_HIGH
+                ),
+                on_click = lambda e: quick_add_session()
+            ),
+            ], spacing = 25),
             ft.Row([
                 video_container,
                 ft.Container(
@@ -554,19 +688,20 @@ def main(page: ft.Page):
                                     scan_status
                                 ], spacing = -3, alignment = ft.MainAxisAlignment.CENTER),
                             ),
-                            ft.Container(
-                                width = 410,
-                                height = 100,
-                                content = ft.Column([
-                                    ft.Text(
-                                        value = "Manual ID Input: ",
-                                        style = ft.TextStyle(
-                                        size = 15,
-                                        color = ft.Colors.ON_SURFACE_VARIANT
-                                    )),
-                                    manual_input_field
-                                ], margin = ft.Margin(20, 10, 20, 10), alignment = ft.MainAxisAlignment.CENTER)
-                            )
+                            
+                            # ft.Container(
+                            #     width = 410,
+                            #     height = 100,
+                            #     content = ft.Column([
+                            #         ft.Text(
+                            #             value = "Manual ID Input: ",
+                            #             style = ft.TextStyle(
+                            #             size = 15,
+                            #             color = ft.Colors.ON_SURFACE_VARIANT
+                            #         )),
+                            #         manual_input_field
+                            #     ], margin = ft.Margin(20, 10, 20, 10), alignment = ft.MainAxisAlignment.CENTER)
+                            # )
                         ], spacing = 20)
                     )
                 )
@@ -628,8 +763,8 @@ def main(page: ft.Page):
                                 expand = True,
                                 bgcolor = ft.Colors.SURFACE_CONTAINER_HIGH,
                                 border_color = ft.Colors.SURFACE_BRIGHT,
-                                label = ft.Text("Subject"),
-                                options = subject_options,
+                                label = ft.Text("Section"),
+                                options = section_options,
                             )
                         ),
                         ft.Container(
@@ -639,8 +774,8 @@ def main(page: ft.Page):
                                 expand = True,
                                 bgcolor = ft.Colors.SURFACE_CONTAINER_HIGH,
                                 border_color = ft.Colors.SURFACE_BRIGHT,
-                                label = ft.Text("Section"),
-                                options = section_options,
+                                label = ft.Text("Subject"),
+                                options = subject_options,
                             )
                         ),
                         ft.Button(
@@ -657,7 +792,7 @@ def main(page: ft.Page):
                         bgcolor = ft.Colors.SURFACE_CONTAINER_HIGH,
                         width = 250,
                         height = 40,
-                        content = ft.Text("NEW ATTENDANCE SHEET"),
+                        content = ft.Text("NEW SESSION"),
                         on_click = lambda e: new_session(),
                         align = ft.Alignment.TOP_RIGHT
                     ),
@@ -700,8 +835,8 @@ def main(page: ft.Page):
             height = 370,
             content = ft.Column([
                 session_type_toggle,
-                subject_dropdown,
                 section_dropdown,
+                subject_dropdown,
                 timeslot_field,
                 ft.Button(
                     bgcolor = ft.Colors.SURFACE_CONTAINER_HIGH,
@@ -719,7 +854,7 @@ def main(page: ft.Page):
     # TODO: Class item page
     page_6 = ft.Column()
     
-    # Page Container
+    # For navigation
     navbar = ft.NavigationBar(destinations = [
         ft.NavigationBarDestination(
             icon = ft.Icons.IMAGE,
@@ -741,11 +876,20 @@ def main(page: ft.Page):
         selected_index = 0,
         bgcolor = ft.Colors.SURFACE_CONTAINER_HIGH
     )
+    
+    # Navbar and Page Container
     navigator = ft.Container(content = None)
     current_page = ft.Container(content = page_0)
     
-    
-    
+    # Release camera before closing application
+    def close_app(e):
+        try:
+            kill_scanner_thread()
+            cv.camera.release()
+            
+        except Exception as e:
+            print(e)
+
     page.add(
         navigator,
         ft.SafeArea(
@@ -758,10 +902,10 @@ def main(page: ft.Page):
     )
     page.update()
 
+    page.on_close = close_app
 
 
 # Run Flet app (Flutter my beloved!!)
 if __name__ == "__main__":
     ft.run(main)
-    cv.camera.release()
     

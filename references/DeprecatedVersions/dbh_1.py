@@ -203,7 +203,6 @@ def get_attendance_log():
     finally: 
         conn.close()
 
-# TODO: Change 'instructor' to 'section'
 # fetch ALL ENTRIES for class list
 def get_class_list():
     conn = get_connection()
@@ -237,7 +236,6 @@ def get_class_list():
         conn.close()
         
 # fetch records for a specific attendance sheet
-# TODO: Fetch attendance sheet ordered alphabetically
 
 
 

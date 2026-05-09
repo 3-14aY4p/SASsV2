@@ -10,15 +10,15 @@ INSERT INTO `subject` (`subject_id`, `subject_title`) VALUES
 ('GE-ELEC-1', 'ENVIRONMENTAL SCIENCE');
 
 INSERT INTO `instructor` (`instructor_id`, `instructor_name`, `password`) VALUES
-('001CLG', 'Mr. C.L. Gimeno', 'CLG001'),
-('002EAC', 'Mr. E.A. Centina', 'EAC002'),
-('003MFF', 'Mrs. M.F. Franco', 'MFF003'),
-('004JC', 'Mrs. J. Calfoforo', 'JC004'),
-('005LB', 'Mr. L. Barrios', 'LB005'),
-('006ME', 'Ms. M. Escriba', 'ME006'),
-('007JM', 'Prof. J. Marfil', 'JM007'),
-('008RAT', 'Dr. R.A. Torres', 'RAT008'),
-('009YG',  'Ms. Y. Gonzales',   'YG009');
+('001CLG', 'Mr. C.L. Gimeno', MD5('CLG001')),
+('002EAC', 'Mr. E.A. Centina', MD5('EAC002')),
+('003MFF', 'Mrs. M.F. Franco', MD5('MFF003')),
+('004JC', 'Mrs. J. Calfoforo', MD5('JC004')),
+('005LB', 'Mr. L. Barrios', MD5('LB005')),
+('006ME', 'Ms. M. Escriba', MD5('ME006')),
+('007JM', 'Prof. J. Marfil', MD5('JM007')),
+('008RAT', 'Dr. R.A. Torres', MD5('RAT008')),
+('009YG',  'Ms. Y. Gonzales',   MD5('YG009'));
 
 INSERT INTO `student` (`student_id`, `first_name`, `middle_name`, `last_name`, `date_of_birth`, `gender`) VALUES
 -- BSCS 2B
@@ -308,32 +308,32 @@ INSERT INTO `subject_enrollment` (`enrollment_id`, `subject_id`, `instructor_id`
 (82, 'ICT-110', '005LB'), 
 (83, 'ICT-110', '005LB');
 
-INSERT INTO `schedule` (`schedule_id`, `class_id`, `sched_start`, `sched_end`, `day_of_week`) VALUES
--- BSCS 2B
-(1, 2, '07:30:00', '08:30:00', 'monday'),           -- ICT 111      Mr. C.L. Gimeno
-(2, 3, '10:30:00', '12:00:00', 'monday'),           -- ICT 107      Mr. E.A. Centina
-(3, 2, '13:30:00', '15:00:00', 'monday'),           -- ICT 111      Mr. C.L. Gimeno
-(4, 7, '15:30:00', '16:30:00', 'monday'),           -- PE 4         Prof. J. Marfil
-(5, 2, '07:30:00', '08:30:00', 'tuesday'),          -- ICT 111      Mr. C.L. Gimeno
-(6, 3, '09:30:00', '11:00:00', 'tuesday'),          -- ICT 107      Mr. E.A. Centina
-(7, 4, '11:00:00', '12:30:00', 'tuesday'),          -- ICT 114      Mrs. M.F. Franco
-(8, 6, '13:30:00', '15:00:00', 'tuesday'),          -- CS 101       Mrs. J. Calfoforo
-(9, 3, '15:30:00', '17:00:00', 'tuesday'),          -- ICT 107      Mr. E.A. Centina
-(10, 5, '10:00:00', '11:30:00', 'wednesday'),       -- ICT 112      Ms. M. Escriba
-(11, 1, '14:00:00', '15:30:00', 'wednesday'),       -- ICT 110      Mr. L. Barrios
-(12, 4, '07:30:00', '08:30:00', 'thursday'),        -- ICT 114      Mrs. M.F. Franco
-(13, 6, '14:00:00', '15:30:00', 'thursday'),        -- CS 101       Mrs. J. Calfoforo
-(14, 8, '16:30:00', '18:00:00', 'thursday'),        -- GE ELEC 1    Dr. R.A. Torres
-(15, 4, '07:30:00', '08:30:00', 'friday'),          -- ICT 114      Mrs. M.F. Franco
-(16, 8, '16:30:00', '18:00:00', 'friday'),          -- GE ELEC 1    Dr. R.A. Torres
--- BSCS 2A
-(17, 4, '08:30:00', '09:00:00', 'monday'),          -- ICT-114      Mrs. M. Franco
-(18, 9, '10:35:00', '11:00:00', 'tuesday'),         -- CS-101       Ms. Y. Gonzales
-(19, 3, '08:30:00', '09:00:00', 'wednesday'),       -- ICT-107      Mr. E. Centina
-(20, 5, '11:30:00', '12:00:00', 'wednesday'),       -- ICT-112      Mr. E. Centina
-(21, 8, '07:30:00', '08:00:00', 'thursday'),        -- GE-ELEC-1    Dr. M. Forres
-(22, 1, '10:30:00', '10:55:00', 'thursday'),        -- ICT-110      Mr. L. Barrios
-(23, 4, '13:30:00', '14:00:00', 'thursday'),        -- ICT-114      Mrs. M. Franco
-(24, 7, '15:30:00', '16:00:00', 'thursday'),        -- PE-4         Prof. J. Marfil
-(25, 8, '10:30:00', '11:00:00', 'friday'),          -- GE-ELEC-1    Dr. Y. Gonzales
-(26, 2, '14:00:00', '14:20:00', 'friday');          -- ICT-111      Mr. C. Gimeno
+INSERT INTO schedule (schedule_id, class_id, sched_start, sched_end, day_of_week) VALUES
+-- BSCS 2B (Block 1)
+(1,  2, '07:30:00', '09:00:00', 'monday'),    -- ICT-111  Mr. Gimeno
+(2,  3, '10:30:00', '12:00:00', 'monday'),    -- ICT-107  Mr. Centina
+(3,  2, '13:00:00', '15:00:00', 'monday'),    -- ICT-111  Mr. Gimeno
+(4,  7, '15:00:00', '17:00:00', 'monday'),    -- PE-4     Prof. Marfil
+(5,  2, '07:30:00', '09:00:00', 'tuesday'),   -- ICT-111  Mr. Gimeno
+(6,  3, '09:00:00', '10:30:00', 'tuesday'),   -- ICT-107  Mr. Centina
+(7,  4, '10:30:00', '12:00:00', 'tuesday'),   -- ICT-114  Mrs. Franco
+(8,  6, '13:00:00', '15:00:00', 'tuesday'),   -- CS-101   Mrs. Calfoforo
+(9,  3, '15:00:00', '16:30:00', 'tuesday'),   -- ICT-107  Mr. Centina
+(10, 5, '09:00:00', '12:00:00', 'wednesday'), -- ICT-112  Ms. Escriba
+(11, 1, '13:00:00', '16:00:00', 'wednesday'), -- ICT-110  Mr. Barrios
+(12, 4, '07:30:00', '09:00:00', 'thursday'),  -- ICT-114  Mrs. Franco
+(13, 6, '13:00:00', '16:00:00', 'thursday'),  -- CS-101   Mrs. Calfoforo
+(14, 8, '16:00:00', '17:30:00', 'thursday'),  -- GE-ELEC-1 Dr. Torres
+(15, 4, '07:30:00', '09:00:00', 'friday'),    -- ICT-114  Mrs. Franco
+(16, 8, '16:00:00', '17:30:00', 'friday'),    -- GE-ELEC-1 Dr. Torres
+-- BSCS 2A (Block 2)
+(17, 13, '07:30:00', '09:00:00', 'monday'),   -- ICT-114  Mrs. Franco
+(18,  9, '10:30:00', '11:00:00', 'tuesday'),  -- CS-101   Ms. Gonzales
+(19, 12, '07:30:00', '10:30:00', 'wednesday'),-- ICT-107  Mr. Centina
+(20, 14, '10:30:00', '12:00:00', 'wednesday'),-- ICT-112  Mr. Centina
+(21, 16, '07:30:00', '09:00:00', 'thursday'), -- GE-ELEC-1 Dr. Torres
+(22, 10, '09:30:00', '12:00:00', 'thursday'), -- ICT-110  Mr. Barrios
+(23, 13, '13:00:00', '15:00:00', 'thursday'), -- ICT-114  Mrs. Franco
+(24, 15, '15:30:00', '16:00:00', 'thursday'), -- PE-4     Prof. Marfil
+(25, 16, '09:00:00', '12:00:00', 'friday'),   -- GE-ELEC-1 Dr. Torres
+(26, 11, '13:00:00', '16:00:00', 'friday');   -- ICT-111  Mr. Gimeno
