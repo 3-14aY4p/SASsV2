@@ -83,8 +83,7 @@ CREATE TABLE `schedule` (
 
 CREATE TABLE `attendance` (
   `attendance_id` int(11) NOT NULL AUTO_INCREMENT,
-  `subject_id` varchar(20) DEFAULT NULL,
-  `instructor_id` varchar(20) DEFAULT NULL,
+  `class_id` int(11) DEFAULT NULL,
   `student_id` varchar(20) DEFAULT NULL,
   `date` date DEFAULT curdate(),
   `time` time DEFAULT curtime(),
@@ -93,9 +92,43 @@ CREATE TABLE `attendance` (
   `session_end` time DEFAULT NULL,
   `status` enum('on time', 'late', 'absent') DEFAULT 'absent',
   PRIMARY KEY (`attendance_id`),
-  FOREIGN KEY (`subject_id`) REFERENCES `subject`(`subject_id`),
-  FOREIGN KEY (`instructor_id`) REFERENCES `instructor`(`instructor_id`),
+  FOREIGN KEY (`class_id`) REFERENCES `class`(`class_id`),
   FOREIGN KEY (`student_id`) REFERENCES `student`(`student_id`)
 );
+
+-- AUTOMATIC setting of schedule and recording of attendance status
+DELIMITER //
+CREATE TRIGGER `trg_attendance_defaults` BEFORE INSERT ON `attendance` FOR EACH ROW BEGIN
+    DECLARE v_start TIME;
+    DECLARE v_end   TIME;
+
+    -- Auto-fill session_start and session_end from schedule
+    IF NEW.session_start IS NULL OR NEW.session_end IS NULL THEN
+        SELECT sched_start, sched_end
+        INTO   v_start, v_end
+        FROM   `schedule`
+        WHERE  class_id    = NEW.class_id
+          AND  day_of_week = LOWER(DAYNAME(NEW.date))
+        LIMIT 1;
+
+        IF v_start IS NOT NULL THEN
+            SET NEW.session_start = v_start;
+            SET NEW.session_end   = v_end;
+        END IF;
+    END IF;
+
+    -- Auto-set status: on time if within 15 mins, else late
+    IF NEW.status = 'absent'
+       AND NEW.time IS NOT NULL
+       AND NEW.session_start IS NOT NULL THEN
+        IF NEW.time <= ADDTIME(NEW.session_start, '00:15:00') THEN
+            SET NEW.status = 'on time';
+        ELSE
+            SET NEW.status = 'late';
+        END IF;
+    END IF;
+END //
+DELIMITER ;
+
 
 COMMIT;
