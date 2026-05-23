@@ -87,7 +87,7 @@ def query_instructor_id(instructor_id: str, password: str):
         conn.close()
 
 # validate existence of student_id
-def query_student_id(student_id: str) -> str:
+def query_student_id(student_id: str):
     conn = get_connection()
     if not conn:
         return False
@@ -121,7 +121,7 @@ def query_student_id(student_id: str) -> str:
         conn.close()
 
 # validates if student is enrolled in a subject
-def query_subject_enrollment(student_id: str, subject_id: str, instructor_id: str) -> bool:
+def query_subject_enrollment(student_id: str, subject_id: str, instructor_id: str):
     conn = get_connection()
     if not conn:
         return False
@@ -149,7 +149,7 @@ def query_subject_enrollment(student_id: str, subject_id: str, instructor_id: st
         conn.close()
 
 # validates if student has has already recorded PRESENT or LATE for the session
-def query_attendance(student_id: str, subject_id: str, instructor_id: str, session_date: date, session_start: time) -> bool:
+def query_attendance(student_id: str, subject_id: str, instructor_id: str, session_date: date, session_start: time):
     conn = get_connection()
     if not conn:
         return False
@@ -251,7 +251,7 @@ def get_instructor_subjects(instructor_id: str):
         
         subjects = []
         for subject in row:
-            subjects.append(subject[0])
+            subjects.append(subject)
         
         return subjects
 
