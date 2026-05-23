@@ -7,27 +7,10 @@ import threading
 import time as t
 
 # Custom imports for handler files
+import handlers.dbhandler as db
+import handlers.cvhandler as cv
 
 
-
-# Convert strings into datetime objects
-def convert_time(time_str: str) -> time | None:
-    format = "%H:%M"
-    try:
-        time = datetime.strptime(time_str, format).time()
-        return time
-    except ValueError as e:
-        # error_snackbar("ERROR: Invalid format.")
-        return None
-    
-def convert_date(date_str: str) -> date | None:
-    format = "%Y/%m/%d"
-    try:
-        date = datetime.strptime(date_str, format).date()
-        return date
-    except ValueError as e:
-        # error_snackbar("ERROR: Invalid format.")
-        return None
 
 
 #* MAIN FUNCTION
@@ -50,6 +33,32 @@ def main(page: ft.Page):
     page.window.minimizable = False
     page.window.maximizable = False
     
+    
+    # Error pop-ups
+    def error_snackbar(error_text: str):
+        page.show_dialog(ft.SnackBar(ft.Text(error_text,
+                                             color=ft.Colors.ON_SURFACE_VARIANT),
+                                     bgcolor=ft.Colors.SURFACE_CONTAINER))
+
+    # Convert strings into datetime objects
+    def convert_time(time_str: str) -> time | None:
+        format = "%H:%M"
+        try:
+            time = datetime.strptime(time_str, format).time()
+            return time
+        except ValueError as e:
+            error_snackbar("ERROR: Invalid format.")
+            return None
+        
+    def convert_date(date_str: str) -> date | None:
+        format = "%Y/%m/%d"
+        try:
+            date = datetime.strptime(date_str, format).date()
+            return date
+        except ValueError as e:
+            error_snackbar("ERROR: Invalid format.")
+            return None
+
     
     #* PAGE 0 COMPONENTS
     
@@ -74,15 +83,40 @@ def main(page: ft.Page):
     
     #* PAGE 1 COMPONENTS
     
-    # TODO: turns to true upon scanner thread activated
     camera_active = False
-    recent_activity_column = ft.Column([
+    cam_status_1 = ft.Text(value="Scanner active" if camera_active else "Scanner inactive",
+                            style=ft.TextStyle(
+                                weight=ft.FontWeight.NORMAL,
+                                size=12,
+                                color=ft.Colors.ON_SURFACE_VARIANT
+                            )
+                        )
+    cam_status_2 = ft.Text(value="Camera connected" if camera_active else "Camera disconnected",
+                            style=ft.TextStyle(
+                                weight=ft.FontWeight.NORMAL,
+                                size=12,
+                                color=ft.Colors.ON_SURFACE_VARIANT
+                            ),
+                        )
 
-        ])
-    # HOW TO APPEND ACTIVITY
-    # recent_activity_column.controls.insert(0, ft.Text("test"))
+    def update_cam_status():
+        nonlocal cam_status_1, cam_status_2
+        cam_status_1.value = "Scanner active" if camera_active else "Scanner inactive"
+        cam_status_2.value = "Camera connected" if camera_active else "Camera disconnected"
 
-    date_today = ft.Text(value=f"{datetime.now().strftime("%B %d, %Y || %A")}",
+        page.update()
+        
+    
+    recent_activity_column = ft.Column(controls=[
+        
+    ])
+    day_schedule_column = ft.Column(controls=[
+        
+    ])
+    # HOW TO APPEND
+    # column.controls.insert(0, ft.Text("test"))
+
+    date_today = ft.Text(value=f"{datetime.now().strftime("%b %d, %Y || %A")}",
             style=ft.TextStyle(
                 weight=ft.FontWeight.BOLD,
                 size=24,
@@ -99,7 +133,7 @@ def main(page: ft.Page):
     
     def update_time():
         while True:
-            date_today.value = f"{datetime.now().strftime("%B %d, %Y || %A")}"
+            date_today.value = f"{datetime.now().strftime("%b %d, %Y || %A")}"
             time_today.value = f"{datetime.now().strftime("%I:%M %p")}"
             page.update()
             
@@ -149,11 +183,19 @@ def main(page: ft.Page):
         ]
     
     # ID scanner input fields
+    camera_preview = ft.Image(
+            src="FletApplication/empty.jpg",
+            width=760,
+            height=495,
+            fit=ft.BoxFit.COVER,
+        )
+    # camera_preview.src_base64 = ""
     video_container = ft.Container(
             bgcolor=ft.Colors.SURFACE_CONTAINER,
             expand=True,
             width=716, height=415,
-            border_radius=20
+            border_radius=20,
+            content=camera_preview
         )
     manual_id_input = ft.TextField(
             width=716, height = 60,
@@ -192,6 +234,10 @@ def main(page: ft.Page):
                 color=ft.Colors.ON_SURFACE_VARIANT
             )
         )
+    
+    def on_scan(ret_string: str, is_valid: bool):
+        pass
+    
     
     
     #* PAGE 3 COMPONENTS
@@ -329,23 +375,11 @@ def main(page: ft.Page):
                                     ),
                                 ft.Row([
                                     ft.Icon(icon=ft.Icons.REMOVE_RED_EYE, size=14),
-                                    ft.Text(value="Scanner active" if camera_active else "Scanner inactive",
-                                        style=ft.TextStyle(
-                                            weight=ft.FontWeight.NORMAL,
-                                            size=12,
-                                            color=ft.Colors.ON_SURFACE_VARIANT
-                                        )
-                                    ),
+                                    cam_status_1
                                 ]),
                                 ft.Row([
                                     ft.Icon(icon=ft.Icons.CAMERA_ALT_OUTLINED, size=14),
-                                    ft.Text(value="Camera connected" if camera_active else "Camera disconnected",
-                                        style=ft.TextStyle(
-                                            weight=ft.FontWeight.NORMAL,
-                                            size=12,
-                                            color=ft.Colors.ON_SURFACE_VARIANT
-                                        )
-                                    ),
+                                    cam_status_2
                                 ]),
                             ], margin=ft.Margin(20, 15, 20, 15)
                         )
@@ -409,7 +443,7 @@ def main(page: ft.Page):
                                         color=ft.Colors.ON_SURFACE_VARIANT
                                     )
                                 ),
-                            recent_activity_column,
+                            recent_activity_column if len(recent_activity_column.controls) != 0 else ft.Text(value="+ No recent activity."),
                             ], margin=ft.Margin(20, 15, 20, 15),
                         )
                     ),
@@ -448,7 +482,15 @@ def main(page: ft.Page):
                                 ),
                         ], scroll=ft.ScrollMode.AUTO, spacing=20
                     ),
-                ], spacing=20, expand=7
+                    ft.Text(value="TODAY'S SCHEDULE",
+                            style=ft.TextStyle(
+                                weight=ft.FontWeight.BOLD,
+                                size=28,
+                                color=ft.Colors.ON_SURFACE_VARIANT
+                            )
+                        ),
+                    day_schedule_column if len(day_schedule_column.controls) != 0 else ft.Text(value="+ You have no schedule lined up for today."),
+                ], spacing=20, expand=7, scroll=ft.ScrollMode.AUTO
             ),
         ], spacing=30
         )
@@ -557,7 +599,7 @@ def main(page: ft.Page):
                 ft.Container(
                     align=ft.Alignment.TOP_CENTER,
                     bgcolor=ft.Colors.SURFACE_CONTAINER,
-                    expand=2, height=320,
+                    expand=2, height=340,
                     border_radius=20,
                     content=ft.Column([
                             ft.Row([
@@ -598,16 +640,54 @@ def main(page: ft.Page):
         )
     )
     
+    # TODO: New session page
+    # TODO: Expanded previous sessions page
+    # TODO: Expanded session analytics page
+    
+    
+    
+    
+     # * CAMERA THREAD FUNCTIONS
+
+    # Switch for controlling camera thread
+    _scanner_stop_event = threading.Event()
+
+    # Start camera thread
+    def start_scanner_thread():
+        nonlocal camera_active
+        
+        if session_details['bgn'] == None or session_details['fin'] == None or session_details['subj'] == None or session_details['sect'] == None:
+            return
+
+        camera_active = True
+        _scanner_stop_event.clear()  # Clear and reset threading
+        threading.Thread(
+            target=cv.capture_frames,
+            args=(page, camera_preview, on_scan, _scanner_stop_event),
+            daemon=True,
+        ).start()
+
+    # End thread
+    def kill_scanner_thread():
+        nonlocal camera_active
+        
+        camera_active = False
+        _scanner_stop_event.set()  # Signal the thread to stop
+    
     
     def set_page(e):
         i = e.control.selected_index
         if i == 0:
+            update_cam_status()
             current_page.content = page_1
         elif i == 1:
+            start_scanner_thread()
             current_page.content = page_2
         elif i == 2:
+            kill_scanner_thread()
             current_page.content = page_3
         elif i == 3:
+            kill_scanner_thread()
             current_page.content = page_4
         page.update()
     
@@ -638,10 +718,18 @@ def main(page: ft.Page):
     # Navbar and Page Containers (updateable)
     current_navi = ft.Container(content=navbar)
     current_page = ft.Container(content=page_1) # TODO: Revert to defaults after setup
+    
 
     def close_app():
-        pass
-    
+        try:
+            kill_scanner_thread()
+            if cv.camera:
+                cv.camera.release()
+
+        except Exception as e:
+            print(e)
+            
+        
     page.add(
         current_navi,
         ft.SafeArea(

@@ -13,6 +13,8 @@ color_grn = (0, 255, 0)
 # tesseract config
 conf = r"--psm 7 --oem 1 tessedit_char_whitelist=0123456789-AI"
 
+camera: cv2.VideoCapture
+
 # get roi rect/frame
 def get_roi_rect(frame):
     h, w = frame.shape[:2]
@@ -66,6 +68,8 @@ def extract_id(roi):
 
 # main camera loop
 def capture_frames(page, image_control, on_scan, stop_event: threading.Event):
+    global camera
+    
     camera = cv2.VideoCapture(0)
     
     camera.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
