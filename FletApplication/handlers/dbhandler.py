@@ -87,5 +87,17 @@ def query_login_credentials(instructor_id: str, password: str):
 
     finally:
         conn.close()
-        
+
+# for attendance recording    
+def query_student_id():
+    pass
+
+def query_enrollment():
+    pass
+
+def query_attendance():
+    pass
+
+def record_attendance():
+    pass
 

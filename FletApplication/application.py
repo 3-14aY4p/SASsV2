@@ -99,17 +99,20 @@ def main(page: ft.Page):
         
         current_user = usernm.get('name')
         current_u_id = userid
-        
+
         setattr(userid_field, 'value', "")
         setattr(passwd_field, 'value', "")
-
+        
+        update_user_details()
+        start_dashb_time_thread()
+        
         current_navi.content = navbar
         current_page.content = page_1
         
     
     def logout():
         nonlocal current_user, current_u_id
-        
+
         current_user = ""
         current_u_id = ""
         
@@ -150,6 +153,14 @@ def main(page: ft.Page):
     # HOW TO APPEND
     # column.controls.insert(0, ft.Text("test"))
 
+    user_greeting = ft.Text(value=f"Welcome, {current_user}",
+            style=ft.TextStyle(
+                weight=ft.FontWeight.BOLD,
+                size=28,
+                color=ft.Colors.ON_SURFACE_VARIANT
+            )
+        )
+
     date_today = ft.Text(value=f"{datetime.now().strftime("%b %d, %Y || %A")}",
             style=ft.TextStyle(
                 weight=ft.FontWeight.BOLD,
@@ -164,6 +175,9 @@ def main(page: ft.Page):
                 color=ft.Colors.ON_SURFACE_VARIANT
             )
         )
+    
+    def update_user_details():
+        user_greeting.value = f"Welcome, {current_user}"
     
     
     #* PAGE 2 COMPONENTS
@@ -284,7 +298,8 @@ def main(page: ft.Page):
         
         today = date.today()
     
-        full_name = db.query_student_id(student_id)
+        # TODO: FIX QUERY FUNCTIONS
+        full_name = db.query_student_id()
         if not full_name:
             scanned_id.value = student_id
             scanned_name.value = "NOT FOUND"
@@ -292,7 +307,7 @@ def main(page: ft.Page):
             
             return
             
-        is_enrolled = db.query_enrollment(student_id, session_details['subj'], current_u_id)
+        is_enrolled = db.query_enrollment()
         if not is_enrolled:
             scanned_id.value = student_id
             scanned_name.value = full_name
@@ -300,7 +315,6 @@ def main(page: ft.Page):
             
             return
         
-        # TODO: FIX ATTENDANCE FUNCTIONS
         has_record = db.query_attendance()
         if has_record:
             scanned_id.value = student_id
@@ -309,6 +323,7 @@ def main(page: ft.Page):
             
             return
         
+        # TODO: Retrieve info on record
         status = db.record_attendance()
         
         scanned_id.value = student_id
@@ -513,12 +528,14 @@ def main(page: ft.Page):
     # dt_session_log = ft.DataTable()
     
     
+    
+    
     #* PAGE SETUP; UI/UX
     
     # Login Page
     page_0 = ft.Container(
         bgcolor=ft.Colors.SURFACE_CONTAINER,
-        width=420, height=330,
+        width=420, height=300,
         align=ft.Alignment.CENTER,
         border_radius=20,
         content=ft.Column([
@@ -547,7 +564,7 @@ def main(page: ft.Page):
                     ),
                     on_click=lambda e: login(),
                 ),
-            ], align=ft.Alignment.TOP_LEFT, margin=30, spacing=30,
+            ], align=ft.Alignment.TOP_LEFT, margin=30, spacing=20,
         )
     )
         
@@ -647,58 +664,61 @@ def main(page: ft.Page):
                 ], spacing=20, expand=2
             ),
             ft.Column([
-                    ft.Row([
-                            date_today,
-                            ft.Row([
-                                time_today,
-                                ft.IconButton(
-                                        icon = ft.Icons.LOGOUT,
-                                        align = ft.Alignment.CENTER_RIGHT,
-                                        style = ft.ButtonStyle(
-                                                bgcolor = ft.Colors.SURFACE_CONTAINER_HIGHEST,
-                                                elevation=30,
-                                        ),
-                                        on_click=lambda e: logout()
-                                    )
-                                ], spacing=20
-                            )
-                        ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN
+                ft.Row([
+                    user_greeting,
+                    ft.IconButton(
+                            icon = ft.Icons.LOGOUT,
+                            align = ft.Alignment.CENTER_RIGHT,
+                            style = ft.ButtonStyle(
+                                    bgcolor = ft.Colors.SURFACE_CONTAINER_HIGHEST,
+                                    elevation=30,
+                            ),
+                            on_click=lambda e: logout()
+                        )
+                    ], spacing=20, alignment=ft.MainAxisAlignment.SPACE_BETWEEN
+                ),
+                ft.Divider(),
+                ft.Row([
+                        date_today,
+                        time_today,
+                    ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN
+                ),
+                ft.Row([
+                        ft.Container(
+                                align=ft.Alignment.TOP_CENTER,
+                                bgcolor=ft.Colors.SURFACE_CONTAINER,
+                                width=280, height= 200,
+                                border_radius=20,
+                            ),
+                        ft.Container(
+                                align=ft.Alignment.TOP_CENTER,
+                                bgcolor=ft.Colors.SURFACE_CONTAINER,
+                                width=280, height= 200,
+                                border_radius=20,
+                            ),
+                        ft.Container(
+                                align=ft.Alignment.TOP_CENTER,
+                                bgcolor=ft.Colors.SURFACE_CONTAINER,
+                                width=280, height= 200,
+                                border_radius=20,
+                            ),
+                        ft.Container(
+                                align=ft.Alignment.TOP_CENTER,
+                                bgcolor=ft.Colors.SURFACE_CONTAINER,
+                                width=280, height= 200,
+                                border_radius=20,
+                            ),
+                    ], scroll=ft.ScrollMode.AUTO, spacing=20
+                ),
+                ft.Divider(),
+                ft.Text(value="TODAY'S SCHEDULE",
+                        style=ft.TextStyle(
+                            weight=ft.FontWeight.BOLD,
+                            size=28,
+                            color=ft.Colors.ON_SURFACE_VARIANT
+                        )
                     ),
-                    ft.Row([
-                            ft.Container(
-                                    align=ft.Alignment.TOP_CENTER,
-                                    bgcolor=ft.Colors.SURFACE_CONTAINER,
-                                    width=280, height= 200,
-                                    border_radius=20,
-                                ),
-                            ft.Container(
-                                    align=ft.Alignment.TOP_CENTER,
-                                    bgcolor=ft.Colors.SURFACE_CONTAINER,
-                                    width=280, height= 200,
-                                    border_radius=20,
-                                ),
-                            ft.Container(
-                                    align=ft.Alignment.TOP_CENTER,
-                                    bgcolor=ft.Colors.SURFACE_CONTAINER,
-                                    width=280, height= 200,
-                                    border_radius=20,
-                                ),
-                            ft.Container(
-                                    align=ft.Alignment.TOP_CENTER,
-                                    bgcolor=ft.Colors.SURFACE_CONTAINER,
-                                    width=280, height= 200,
-                                    border_radius=20,
-                                ),
-                        ], scroll=ft.ScrollMode.AUTO, spacing=20
-                    ),
-                    ft.Text(value="TODAY'S SCHEDULE",
-                            style=ft.TextStyle(
-                                weight=ft.FontWeight.BOLD,
-                                size=28,
-                                color=ft.Colors.ON_SURFACE_VARIANT
-                            )
-                        ),
-                    day_schedule_column if len(day_schedule_column.controls) != 0 else ft.Text(value="+ You have no schedule lined up for today."),
+                day_schedule_column if len(day_schedule_column.controls) != 0 else ft.Text(value="+ You have no schedule lined up for today."),
                 ], spacing=20, expand=7, scroll=ft.ScrollMode.AUTO
             ),
         ], spacing=30
