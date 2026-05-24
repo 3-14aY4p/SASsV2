@@ -1,9 +1,9 @@
-import threading
-import cv2
-import base64
-import time
-import pytesseract
 import re
+import threading
+import time
+import base64
+import cv2
+import pytesseract
 
 
 # color tuples for the roi rect
