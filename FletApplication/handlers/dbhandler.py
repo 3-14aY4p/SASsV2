@@ -483,7 +483,7 @@ def get_attendance_log(instructor_id: str):
     finally: 
         conn.close()
 
-# get list of all classes
+# TODO: get list of all classes
 def get_class_log(instructor_id: str):
     conn = get_connection()
     if not conn:
@@ -510,3 +510,51 @@ def get_class_log(instructor_id: str):
 
     finally: 
         conn.close()
+
+# TODO: get specific session attendance (prepare for export)
+def get_session_attendance():
+    conn = get_connection()
+    if not conn:
+        return None
+    
+    try:
+        curs = conn.cursor()
+
+        curs.execute("""
+
+            """,
+            ()
+        )
+        value = curs.fetchall()
+
+        if not value:
+            return None
+        
+        return value
+
+    except mysql.connector.Error as e:
+        print(f"ERR: {e}")
+        return None
+
+    finally: 
+        conn.close()
+
+# TODO: retrieve data regarding students performance (you can shorten this into 1-2 functions)
+def get_all_students_in_class():
+    pass
+
+def get_present_students_in_class():
+    pass
+
+def get_late_students_in_class():
+    pass
+
+def get_absent_students_in_class():
+    pass
+
+
+#* FILE EXPORT
+
+# TODO: export attendance into .xlsx (excel sheet)
+def export_sheet():
+    pass
