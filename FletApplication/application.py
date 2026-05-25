@@ -36,11 +36,26 @@ def main(page: ft.Page):
     page.window.maximizable = False
     
     
-    # Error pop-ups
-    def error_snackbar(error_text: str):
-        page.show_dialog(ft.SnackBar(ft.Text(error_text,
+    # UI pop-ups
+    def alert_snackbar(text: str):
+        page.show_dialog(ft.SnackBar(ft.Text(text,
                                              color=ft.Colors.ON_SURFACE_VARIANT),
                                      bgcolor=ft.Colors.SURFACE_CONTAINER))
+
+    def confirmation_popup(title_text: str, subtitle_text: str, on_confirm):
+        page.show_dialog(ft.AlertDialog(
+            modal=True,
+            title=ft.Text(title_text),
+            content=ft.Text(subtitle_text),
+            actions=[
+                ft.TextButton("Yes", on_click=lambda e: (
+                        page.pop_dialog(),
+                        on_confirm()
+                    )),
+                ft.TextButton("No", on_click=lambda e: page.pop_dialog()),
+            ],
+            actions_alignment=ft.MainAxisAlignment.END,
+        ))
 
     # Convert strings into datetime objects
     def convert_time(time_str: str) -> time | None:
@@ -49,7 +64,7 @@ def main(page: ft.Page):
             time = datetime.strptime(time_str, format).time()
             return time
         except ValueError as e:
-            error_snackbar("ERR: Invalid format.")
+            alert_snackbar("ERR: Invalid format.")
             return None
         
     def convert_date(date_str: str) -> date | None:
@@ -58,7 +73,7 @@ def main(page: ft.Page):
             date = datetime.strptime(date_str, format).date()
             return date
         except ValueError as e:
-            error_snackbar("ERR: Invalid format.")
+            alert_snackbar("ERR: Invalid format.")
             return None
 
 
@@ -86,7 +101,7 @@ def main(page: ft.Page):
         nonlocal current_user, current_u_id
         
         if userid_field.value == "" or passwd_field == "":
-            error_snackbar("ERR [ID/Password Field]: Input field empty.")
+            alert_snackbar("ERR [ID/Password Field]: Input field empty.")
             return
 
         userid: str = userid_field.value
@@ -94,7 +109,7 @@ def main(page: ft.Page):
         
         usernm = db.query_login_credentials(userid, passwd)
         if not usernm:
-            error_snackbar("ERR: Incorrect ID or Password.")
+            alert_snackbar("ERR: Incorrect ID or Password.")
             return
         
         current_user = usernm.get('name')
@@ -104,12 +119,13 @@ def main(page: ft.Page):
         setattr(passwd_field, 'value', "")
         
         update_user_details()
+        update_recent_activity()
+        update_day_schedule()
         start_dashb_time_thread()
         
         current_navi.content = navbar
         current_page.content = page_1
         
-    
     def logout():
         nonlocal current_user, current_u_id
 
@@ -122,15 +138,18 @@ def main(page: ft.Page):
     
     #* PAGE 1 COMPONENTS
     
+    camera_active_status = False
     camera_active = False
-    cam_status_1 = ft.Text(value="Scanner active" if camera_active else "Scanner inactive",
+    session_active = False
+    
+    cam_status_1 = ft.Text(value="Scanner active" if camera_active_status else "Scanner inactive",
                             style=ft.TextStyle(
                                 weight=ft.FontWeight.NORMAL,
                                 size=12,
                                 color=ft.Colors.ON_SURFACE_VARIANT
                             )
                         )
-    cam_status_2 = ft.Text(value="Camera connected" if camera_active else "Camera disconnected",
+    cam_status_2 = ft.Text(value="Camera connected" if camera_active_status else "Camera disconnected",
                             style=ft.TextStyle(
                                 weight=ft.FontWeight.NORMAL,
                                 size=12,
@@ -138,20 +157,8 @@ def main(page: ft.Page):
                             ),
                         )
 
-    def update_cam_status():
-        nonlocal cam_status_1, cam_status_2
-        
-        cam_status_1.value = "Scanner active" if camera_active else "Scanner inactive"
-        cam_status_2.value = "Camera connected" if camera_active else "Camera disconnected"
-    
-    recent_activity_column = ft.Column(controls=[
-        
-    ])
-    day_schedule_column = ft.Column(controls=[
-        
-    ])
-    # HOW TO APPEND
-    # column.controls.insert(0, ft.Text("test"))
+    recent_activity_column = ft.Column(controls=[])
+    day_schedule_column = ft.Column(controls=[])
 
     user_greeting = ft.Text(value=f"Welcome, {current_user}",
             style=ft.TextStyle(
@@ -200,10 +207,67 @@ def main(page: ft.Page):
             ),
         ]
     
-    
     def update_user_details():
         user_greeting.value = f"Welcome, {current_user}"
     
+    def update_cam_status():
+        nonlocal cam_status_1, cam_status_2
+        
+        cam_status_1.value = "Scanner active" if camera_active_status else "Scanner inactive"
+        cam_status_2.value = "Camera connected" if camera_active_status else "Camera disconnected"
+
+    def update_recent_activity():
+        recent_activity_column.controls.clear()
+        
+        rows = db.get_attendance_log(current_u_id)
+        if rows:
+            index = 0
+            for r in rows:
+                index += 1
+                recent_activity_column.controls.append(
+                    ft.Text(f"[{r['time']}] : {r['student_id']}\n{r['student_name']}", size=11)
+                )
+                if index == 5:
+                    break
+
+    def update_day_schedule():
+        day_schedule_column.controls.clear()
+        schedules = db.get_all_schedules(current_u_id)
+        
+        if not schedules:
+            day_schedule_column.controls.append(
+                    ft.Text(value="+ You have no schedule lined up for today.")
+                )
+        else:
+            today_str = datetime.now().strftime("%A").lower()
+            is_today: bool
+            
+            for s in schedules:
+                is_today = s.get('day').lower() == today_str
+                if is_today:
+                    day_schedule_column.controls.append(
+                        ft.Container(
+                            bgcolor=ft.Colors.SURFACE_CONTAINER if not is_today else ft.Colors.SURFACE_CONTAINER_HIGH,
+                            border_radius=15,
+                            padding=15,
+                            content=ft.Row([
+                                ft.Column([
+                                    ft.Text(f"{s.get('sub_id','')} — {s.get('sub_tt','')}",
+                                            style=ft.TextStyle(weight=ft.FontWeight.BOLD, size=15,
+                                                            color=ft.Colors.ON_SURFACE_VARIANT)),
+                                    ft.Text(f"{s.get('crs_id','')} {s.get('yr_lvl','')}{s.get('sect','')}  |  {s.get('day','').capitalize()}  |  {s.get('label','')}",
+                                            style=ft.TextStyle(size=13, color=ft.Colors.ON_SURFACE_VARIANT)),
+                                ], spacing=4),
+                            ])
+                        )
+                    )
+            
+                else:
+                    day_schedule_column.controls.clear()
+                    day_schedule_column.controls.append(
+                            ft.Text(value="+ You have no schedule lined up for today.")
+                        )
+                
     
     #* PAGE 2 COMPONENTS
     
@@ -211,11 +275,11 @@ def main(page: ft.Page):
     session_details ={
             "bgn": None,
             "fin": None,
-            "subj": "",
             "sect": "",
+            "subj": "",
             "type": "",
             "b_id": -1,     # block id
-            "c_id": -1    # class id
+            "c_id": -1      # class id
         }
     session_details_ui = [
         ft.Text(value="+  SESSION:     None",
@@ -243,9 +307,35 @@ def main(page: ft.Page):
     
     def new_session():
         update_sect_options()
+        subject_options.clear()
+        timeslot_options.clear()
+        
         nsession_bgn_field.value = datetime.now().strftime("%H:%M")
         
         current_page.content = page_5
+    
+    def cancel_current_session():
+        def on_confirm():
+            nonlocal session_details, session_active
+            
+            if camera_active:
+                kill_scanner_thread()
+                
+                session_details ={
+                        "bgn": None,
+                        "fin": None,
+                        "sect": "",
+                        "subj": "",
+                        "type": "",
+                        "b_id": -1,     # block id
+                        "c_id": -1      # class id
+                    }
+                update_session_ui_comp(True)
+                session_active = False
+                
+                page.update()
+                
+        confirmation_popup("Confirm", "Do you want to cancel current session?", on_confirm)
     
     # ID scanner input fields
     camera_preview = ft.Image(
@@ -256,11 +346,11 @@ def main(page: ft.Page):
         )
     camera_preview.src_base64 = ""
     video_container = ft.Container(
-            bgcolor=ft.Colors.SURFACE_CONTAINER,
+            bgcolor=ft.Colors.BLACK,
             expand=True,
             width=716, height=415,
             border_radius=20,
-            content=camera_preview
+            content=None
         )
     manual_id_input = ft.TextField(
             width=716, height = 60,
@@ -271,11 +361,6 @@ def main(page: ft.Page):
         )
     
     # Scanned object details
-    scanner_output = {
-            "s_id": "",
-            "name": "",
-            "stat": ""
-        }
     scanned_id = ft.Text(
             value="\t\t\tNone",
             style=ft.TextStyle(
@@ -301,61 +386,84 @@ def main(page: ft.Page):
             )
         )
     
+    def update_scanner_output_ui():
+        scanned_id.update()
+        scanned_name.update()
+        scan_status.update()
+    
     def on_manual_log(e: ft.Event[ft.TextField]):
         student_id = e.control.value.strip()
         if not student_id:
-            error_snackbar("ERR [ID Input Field]: Input field empty.")
+            alert_snackbar("ERR [ID Input Field]: Input field empty.")
             return
         
         manual_id_input.value = ""
         manual_id_input.update()
         
-        log_attendance(student_id)
+        log_attendance(student_id, "manual")
     
     def on_scan(ret_string: str, is_valid: bool):
-        if not ret_string or is_valid:
+        if not is_valid:          
+            scanned_id.value = "\t\t\tNone"
+            scanned_name.value = "\t\t\tNone"
+            scan_status.value = "\t\t\tNone"
+            update_scanner_output_ui()
+            
             return
 
         log_attendance(ret_string)
         
-    def log_attendance(student_id: str):
+    # FIXME: The UI updates are inconsistent despite having a ret_string
+    def log_attendance(student_id: str, input_type: str = "scan"):
         if not all(session_details.values()):
-            error_snackbar("ERR: No active session.")
+            alert_snackbar("ERR: No active session.")
             return
         
-        today = date.today()
-    
-        # TODO: FIX QUERY FUNCTIONS
-        full_name = db.query_student_id()
+        full_name = db.query_student_id(student_id)
         if not full_name:
-            scanned_id.value = student_id
+            scanned_id.value = f"\t\t\t{student_id}"
             scanned_name.value = "\t\t\tNOT FOUND"
-            scan_status.value = "\t\t\tInvalid ID"
+            scan_status.value = "\t\t\tERR: Invalid ID"
+            update_scanner_output_ui()
             
+            if input_type != "scan":
+                alert_snackbar("ERR: Student not found.")
             return
             
-        is_enrolled = db.query_enrollment()
+        is_enrolled = db.query_enrollment(student_id, session_details['c_id'])
         if not is_enrolled:
-            scanned_id.value = student_id
+            scanned_id.value = f"\t\t\t{student_id}"
             scanned_name.value = f"\t\t\t{full_name}"
-            scan_status.value = "\t\t\tNot Enrolled"
+            scan_status.value = "\t\t\tERR: Not Enrolled"
+            update_scanner_output_ui()
             
+            if input_type != "scan":
+                alert_snackbar("ERR: Student not enrolled in subject.")
             return
-        
-        has_record = db.query_attendance()
+
+        has_record = db.query_attendance(student_id, session_details['c_id'], session_details['fin'])
         if has_record:
-            scanned_id.value = student_id
+            scanned_id.value = f"\t\t\t{student_id}"
             scanned_name.value = f"\t\t\t{full_name}"
-            scan_status.value = "\t\t\tRecord Found"
+            scan_status.value = "\t\t\ttERR: Prior record Found"
+            update_scanner_output_ui()
             
+            if input_type != "scan":
+                alert_snackbar("ERR: Prior record found.")
             return
         
-        # TODO: Retrieve info on record
-        status = db.record_attendance()
-        
-        scanned_id.value = student_id
+        status = db.record_attendance(
+                student_id, 
+                session_details['c_id'], 
+                session_details['type'], 
+                session_details['bgn'], 
+                session_details['fin']
+            )
+        scanned_id.value = f"\t\t\t{student_id}"
         scanned_name.value = f"\t\t\t{full_name}"
         scan_status.value = f"\t\t\tRecorded: {status.upper()}" if status != "error" else "ERROR recording"
+        update_scanner_output_ui()
+        alert_snackbar("SUCCESS: Attendance Recorded.")
             
     
     #* PAGE 3 COMPONENTS
@@ -374,6 +482,22 @@ def main(page: ft.Page):
             ],
             rows=[],
         )
+    
+    def update_attendance_log():
+        dt_attendance_log.rows.clear()
+        
+        rows = db.get_attendance_log(current_u_id)
+        if rows:
+            for r in rows:
+                dt_attendance_log.rows.append(
+                    ft.DataRow(cells=[
+                            ft.DataCell(ft.Text(str(r['time']))),
+                            ft.DataCell(ft.Text(r['student_name'])),
+                            ft.DataCell(ft.Text(f"{r['course_id']} {r['year_level']}{r['section']}")),
+                            ft.DataCell(ft.Text(r['status'])),
+                        ]
+                    )
+                )
     
     
     #* PAGE 4 COMPONENTS
@@ -400,7 +524,7 @@ def main(page: ft.Page):
                 border_color=ft.Colors.SURFACE_BRIGHT,
                 label=ft.Text("Section"),
                 options=section_options,
-                # on_select= 
+                on_select=lambda e: update_subj_options(int(e.data))
             )
         )
     filter_subj_dropdown = ft.Container(
@@ -415,7 +539,7 @@ def main(page: ft.Page):
             )
         )
     
-    dt_classes_log = ft.DataTable(
+    dt_class_log = ft.DataTable(
             align=ft.Alignment.TOP_CENTER,
             width=WIDTH, expand=True,
             border=ft.Border.all(2, ft.Colors.SURFACE_BRIGHT),
@@ -542,13 +666,15 @@ def main(page: ft.Page):
         if not timeslots:
             return
         
+        time_now = datetime.now().time()
         for ts in timeslots:
-            timeslot_options.append(
-                ft.DropdownOption(
-                    text=ts['label'],
-                    data=ts
+            if time_now <= ts['sched_bgn']:
+                timeslot_options.append(
+                    ft.DropdownOption(
+                        text=ts['label'],
+                        data=ts
+                    )
                 )
-            )
     
     def on_nsession_type_change(e: ft.Event[ft.SegmentedButton]):
         slot_types = {
@@ -560,12 +686,12 @@ def main(page: ft.Page):
         nsession_timeslot_select.content = slot_types.get(selected)
 
     def on_confirm_session():
-        nonlocal camera_active      # TODO: This would probably be better off somewhere else
+        nonlocal camera_active_status, session_active
         
         is_makeup = nsession_timeslot_select.content == nsession_timeslot_fields
 
         if nsession_sect_dropdown.content.value is None or nsession_subj_dropdown.content.value is None:
-            error_snackbar("ERR [Section/Subject Dropdown]: No selection.")
+            alert_snackbar("ERR [Section/Subject Dropdown]: No selection.")
             return
         
         if is_makeup:
@@ -573,7 +699,7 @@ def main(page: ft.Page):
                 nsession_bgn_field.value = datetime.now().strftime("%H:%M")
             
             if nsession_fin_field.value.strip() == "":
-                error_snackbar("ERR [End Time Field]: Input field empty.")
+                alert_snackbar("ERR [End Time Field]: Input field empty.")
                 return
             
             session_details['bgn'] = convert_time(nsession_bgn_field.value.strip())
@@ -581,47 +707,59 @@ def main(page: ft.Page):
             
         else:
             if nsession_timeslot_dropdown.content.value is None:
-                error_snackbar("ERR [Timeslot Dropdown]: No selection.")
+                alert_snackbar("ERR [Timeslot Dropdown]: No selection.")
                 return
             
             selected = next((o.data for o in timeslot_options if o.text == nsession_timeslot_dropdown.content.value), None)
             if not selected:
-                error_snackbar("ERR [Timeslot Dropdown]: Invalid timeslot.")
+                alert_snackbar("ERR [Timeslot Dropdown]: Invalid timeslot.")
                 return
             
             session_details['bgn'] = datetime.now().time()
             session_details['fin'] = selected['sched_fin']
+        
+        session_details['sect'] = nsession_sect_dropdown.content.text
+        session_details['subj'] = nsession_details['subj']
+        session_details['b_id'] = nsession_details['b_id']
+        session_details['type'] = "makeup" if is_makeup else "regular"
+        
+        session_details['c_id'] = db.get_class_id(current_u_id, session_details['subj'], session_details['b_id'])
+
+        setattr(nsession_bgn_field, 'value', "")
+        setattr(nsession_fin_field, 'value', "")
+        setattr(nsession_sect_dropdown.content, 'value', "Default")
+        setattr(nsession_subj_dropdown.content, 'value', "Default")
+        setattr(nsession_timeslot_dropdown.content, 'value', "Default")
+
+        nsession_details['subj'] = ""
+        nsession_details['b_id'] = -1
+
+        camera_active_status = True
+        session_active = True
+        current_page.content = page_2
+        update_session_ui_comp()
+        
+        start_scanner_thread()
+        
+    def update_session_ui_comp(revert_to_default: bool = False):
+        if not revert_to_default:
+            session_details_ui[0].value = f"+  SESSION:     {session_details['bgn'].strftime('%I:%M %p')} - {session_details['fin'].strftime('%I:%M %p')}"
+            session_details_ui[1].value = f"+  SECTION:     {session_details['sect']}"
+            session_details_ui[2].value = f"+  SUBJECT:     {session_details['subj']}"
             
-            session_details['sect'] = nsession_sect_dropdown.content.text
-            session_details['subj'] = nsession_details['subj']
-            session_details['b_id'] = nsession_details['b_id']
-            session_details['type'] = "makeup" if is_makeup else "regular"
-            session_details['c_id'] = db.get_class_id(current_u_id, session_details['subj'], session_details['b_id'])
-
-            setattr(nsession_bgn_field, 'value', "")
-            setattr(nsession_fin_field, 'value', "")
-            setattr(nsession_sect_dropdown.content, 'value', "Default")
-            setattr(nsession_subj_dropdown.content, 'value', "Default")
-            setattr(nsession_timeslot_dropdown.content, 'value', "Default")
-
-            nsession_details['subj'] = ""
-            nsession_details['b_id'] = -1
-
-            update_session_ui_comp()
-            camera_active = True
-            current_page.content = page_2
-            start_scanner_thread()
+            db_session_details[0].value = f"{session_details['bgn'].strftime('%I:%M %p')} - {session_details['fin'].strftime('%I:%M %p')}"
+            db_session_details[1].value = f"{session_details['sect']}"
+            db_session_details[2].value = f"{session_details['subj']}"
+        
+        else:
+            session_details_ui[0].value = f"+  SESSION:     None"
+            session_details_ui[1].value = f"+  SECTION:     None"
+            session_details_ui[2].value = f"+  SUBJECT:     None"
             
-    def update_session_ui_comp():
-        session_details_ui[0].value = f"+  SESSION:     {session_details['bgn'].strftime('%I:%M %p')} - {session_details['fin'].strftime('%I:%M %p')}"
-        session_details_ui[1].value = f"+  SECTION:     {session_details['sect']}"
-        session_details_ui[2].value = f"+  SUBJECT:     {session_details['subj']}"
-        
-        db_session_details[0].value = f"{session_details['bgn'].strftime('%I:%M %p')} - {session_details['fin'].strftime('%I:%M %p')}"
-        db_session_details[1].value = f"{session_details['sect']}"
-        db_session_details[2].value = f"{session_details['subj']}"
-        
-        
+            db_session_details[0].value = "No active session"
+            db_session_details[1].value = "No active session"
+            db_session_details[2].value = "No active session"
+
     
     #* PAGE 6 COMPONENTS -- Expand session
     # dt_session_log = ft.DataTable()
@@ -738,7 +876,7 @@ def main(page: ft.Page):
                                         color=ft.Colors.ON_SURFACE_VARIANT
                                     )
                                 ),
-                            recent_activity_column if len(recent_activity_column.controls) != 0 else ft.Text(value="+ No recent activity."),
+                            recent_activity_column,
                             ], margin=ft.Margin(20, 15, 20, 15),
                         )
                     ),
@@ -799,7 +937,7 @@ def main(page: ft.Page):
                             color=ft.Colors.ON_SURFACE_VARIANT
                         )
                     ),
-                day_schedule_column if len(day_schedule_column.controls) != 0 else ft.Text(value="+ You have no schedule lined up for today."),
+                day_schedule_column,
                 ], spacing=20, expand=7, scroll=ft.ScrollMode.AUTO
             ),
         ], spacing=30
@@ -831,19 +969,31 @@ def main(page: ft.Page):
                                                 color=ft.Colors.ON_SURFACE_VARIANT
                                             )
                                         ),
-                                        ft.IconButton(
-                                            icon = ft.Icons.CLASS_OUTLINED,
-                                            align = ft.Alignment.CENTER_RIGHT,
-                                            style = ft.ButtonStyle(
-                                                bgcolor = ft.Colors.SURFACE_CONTAINER_HIGHEST,
-                                                elevation=30,
-                                            ),
-                                            on_click=lambda e: (
-                                                kill_scanner_thread(),
-                                                new_session(),
-                                            ),
-                                        ),
-                                    ], spacing=118
+                                        ft.Row([
+                                            ft.IconButton(
+                                                    icon = ft.Icons.CLASS_OUTLINED,
+                                                    align = ft.Alignment.CENTER_RIGHT,
+                                                    style = ft.ButtonStyle(
+                                                        bgcolor = ft.Colors.SURFACE_CONTAINER_HIGHEST,
+                                                        elevation=30,
+                                                    ),
+                                                    on_click=lambda e: (
+                                                        kill_scanner_thread(),
+                                                        new_session(),
+                                                    ),
+                                                ),
+                                            ft.IconButton(
+                                                    icon = ft.Icons.CANCEL_OUTLINED,
+                                                    align = ft.Alignment.CENTER_RIGHT,
+                                                    style = ft.ButtonStyle(
+                                                        bgcolor = ft.Colors.SURFACE_CONTAINER_HIGHEST,
+                                                        elevation=30,
+                                                    ),
+                                                    on_click=lambda e: cancel_current_session(),
+                                                ), 
+                                            ],
+                                        )
+                                    ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN
                                 ),
                                 session_details_ui[0],
                                 session_details_ui[1],
@@ -954,7 +1104,7 @@ def main(page: ft.Page):
                     )
                 ),
                 ft.Column([
-                        dt_classes_log,
+                        dt_class_log,
                     ], scroll=ft.ScrollMode.AUTO, expand=5
                 ),
             ], spacing=30
@@ -990,7 +1140,7 @@ def main(page: ft.Page):
                         ft.IconButton(
                                 icon=ft.Icons.CANCEL_OUTLINED,
                                 on_click=lambda e: (
-                                        start_scanner_thread() if all(session_details) else None,
+                                        start_scanner_thread() if all(session_details.values()) else None,
                                         setattr(current_page, "content", page_2),
                                     )
                                 )
@@ -1056,9 +1206,13 @@ def main(page: ft.Page):
 
     # Start camera thread
     def start_scanner_thread():
+        nonlocal camera_active
+        
         if session_details['bgn'] == None or session_details['fin'] == None or session_details['subj'] == None or session_details['sect'] == None:
             return
 
+        video_container.content = camera_preview    
+        camera_active = True
         _scanner_stop_event.clear()  # Clear and reset threading
         threading.Thread(
             target=cv.capture_frames,
@@ -1068,6 +1222,10 @@ def main(page: ft.Page):
 
     # End thread
     def kill_scanner_thread():
+        nonlocal camera_active
+        
+        video_container.content = None
+        camera_active = False
         _scanner_stop_event.set()  # Signal the thread to stop
     
     
@@ -1076,17 +1234,20 @@ def main(page: ft.Page):
     def set_page(e: ft.Event[ft.NavigationBar]):
         i = e.control.selected_index
         if i == 0:
-            update_cam_status()
             start_dashb_time_thread()
+            update_cam_status()
+            update_recent_activity()
             kill_scanner_thread()
             current_page.content = page_1
         elif i == 1:
             kill_dashb_time_thread()
-            start_scanner_thread()
+            if not camera_active and session_active:
+                start_scanner_thread()
             current_page.content = page_2
         elif i == 2:
             kill_dashb_time_thread()
             kill_scanner_thread()
+            update_attendance_log()
             current_page.content = page_3
         elif i == 3:
             kill_dashb_time_thread()
@@ -1134,6 +1295,7 @@ def main(page: ft.Page):
             
         
     page.add(
+        # Changeable content
         current_navi,
         ft.SafeArea(
             align=ft.Alignment.TOP_CENTER,

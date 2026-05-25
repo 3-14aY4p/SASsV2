@@ -97,7 +97,7 @@ def capture_frames(page, image_control, on_scan, stop_event: threading.Event):
                 on_scan(detected_id, True)
         else:
             draw_roi_rect(frame, color_red)
-            on_scan("", False)
+            on_scan(None, False)
 
         ret, buffer = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, 60])
         if ret:

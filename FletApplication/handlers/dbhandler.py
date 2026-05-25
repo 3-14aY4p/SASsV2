@@ -88,17 +88,123 @@ def query_login_credentials(instructor_id: str, password: str):
         conn.close()
 
 # for attendance recording    
-def query_student_id():
-    pass
+def query_student_id(student_id: str):
+    conn = get_connection()
+    if not conn:
+        return None
+ 
+    try:
+        curs = conn.cursor()
+        curs.execute("""
+            SELECT first_name, middle_name, last_name
+            FROM student
+            WHERE student_id = %s
+            LIMIT 1
+            """,
+            (student_id,)
+        )
+        row = curs.fetchone()
+        if not row:
+            return None
+        first, middle, last = row
+        return " ".join(filter(None, [first, middle, last]))
+ 
+    except mysql.connector.Error as e:
+        print(f"ERR [query_student_id]: {e}")
+        return None
+ 
+    finally:
+        conn.close()
+ 
+def query_enrollment(student_id: str, class_id: int):
+    conn = get_connection()
+    if not conn:
+        return None
+ 
+    try:
+        curs = conn.cursor()
+        curs.execute("""
+            SELECT 1
+            FROM enrollment e
+            INNER JOIN class c ON e.block_id = c.block_id
+            WHERE e.student_id = %s
+              AND c.class_id = %s
+            LIMIT 1
+            """,
+            (student_id, class_id)
+        )
+        return curs.fetchone() is not None
+ 
+    except mysql.connector.Error as e:
+        print(f"ERR [query_enrollment]: {e}")
+        return None
+ 
+    finally:
+        conn.close()
+ 
+def query_attendance(student_id: str, class_id: int, session_end: time):
+    conn = get_connection()
+    if not conn:
+        return None
+ 
+    date_now = date.today()
+    try:
+        curs = conn.cursor()
+        curs.execute("""
+            SELECT 1
+            FROM attendance
+            WHERE student_id = %s
+              AND class_id = %s
+              AND date = %s
+              AND session_end = %s
+              AND status IN ('on time', 'late')
+            LIMIT 1
+            """,
+            (student_id, class_id, date_now, session_end)
+        )
+        return curs.fetchone()
+ 
+    except mysql.connector.Error as e:
+        print(f"ERR [query_attendance]: {e}")
+        return None
+ 
+    finally:
+        conn.close()
+ 
+def record_attendance(student_id: str, class_id: int, session_type: str, session_start: time, session_end: time):
+    conn = get_connection()
+    if not conn:
+        return "error"
+ 
+    try:
+        curs = conn.cursor()
 
-def query_enrollment():
-    pass
+        date_now = datetime.now().date()
+        time_now = datetime.now().time()
+        grace = (datetime.combine(date_now, session_start) + timedelta(minutes=15)).time()
 
-def query_attendance():
-    pass
+        if time_now <= grace:
+            status = 'on time'
+        else:
+            status = 'late'
 
-def record_attendance():
-    pass
+        curs.execute("""
+            INSERT INTO attendance
+                (student_id, class_id, session_type, session_start, session_end, status)
+            VALUES (%s, %s, %s, %s, %s, %s)
+            """,
+            (student_id, class_id, session_type, session_start, session_end, status)
+        )
+        conn.commit()
+        
+        return status
+ 
+    except mysql.connector.Error as e:
+        print(f"ERR [record_attendance]: {e}")
+        return "error"
+ 
+    finally:
+        conn.close()
 
 
 
@@ -213,6 +319,7 @@ def get_class_id(instructor_id: str, subject_id: str, block_id: int):
     finally: 
         conn.close()
 
+
 # convert timedelta to time
 def _td_to_time(td) -> time:
     if isinstance(td, timedelta):
@@ -246,7 +353,7 @@ def get_day_schedules(instructor_id: str, subject_id: str, block_id: int):
                     AND c.subject_id = %s
                     AND b.block_id = %s
             """,
-            ("wednesday", instructor_id, subject_id, block_id)
+            ("wednesday", instructor_id, subject_id, block_id)    # TODO: Revert to today_str after debug
         )
         rows = curs.fetchall()
 
@@ -298,7 +405,7 @@ def get_all_schedules(instructor_id: str):
                     'sunday'),
                     sc.sched_start
             """,
-            ()
+            (instructor_id,)
         )
         rows = curs.fetchall()
 
@@ -332,4 +439,74 @@ def get_all_schedules(instructor_id: str):
     finally: 
         conn.close()
 
-# for populating datatables
+
+# get attendance log for the current day
+def get_attendance_log(instructor_id: str):
+    conn = get_connection()
+    if not conn:
+        return None
+    
+    try:
+        curs = conn.cursor()
+
+        curs.execute("""
+                SELECT a.time, a.status,
+                    CONCAT_WS(' ', s.first_name, s.middle_name, s.last_name) AS student_name,
+                    s.student_id,
+                    b.course_id, b.year_level, b.section
+                FROM attendance a
+                INNER JOIN student s ON a.student_id = s.student_id
+                INNER JOIN class c ON a.class_id = c.class_id
+                INNER JOIN block b ON c.block_id = b.block_id
+                WHERE a.date = CURDATE()
+                    AND c.instructor_id = %s
+                    AND a.status NOT IN ('absent')
+                ORDER BY a.time DESC
+            """,
+            (instructor_id,)
+        )
+        logs = curs.fetchall()
+        
+        if not logs:
+            return None
+        
+        # Store data into dictionary
+        cols = [column[0] for column in curs.description]
+        rows = [dict(zip(cols, row)) for row in logs]
+
+        return rows
+
+    except mysql.connector.Error as e:
+        print(f"ERR: {e}")
+        return None
+
+    finally: 
+        conn.close()
+
+# get list of all classes
+def get_class_log(instructor_id: str):
+    conn = get_connection()
+    if not conn:
+        return None
+    
+    try:
+        curs = conn.cursor()
+
+        curs.execute("""
+
+            """,
+            ()
+        )
+        value = curs.fetchall()
+
+        if not value:
+            return None
+        
+        return value
+
+    except mysql.connector.Error as e:
+        print(f"ERR: {e}")
+        return None
+
+    finally: 
+        conn.close()
