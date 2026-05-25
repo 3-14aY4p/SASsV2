@@ -40,7 +40,7 @@ def get_connection():
             host="localhost",
             user="Admin-110",
             password="attendance",
-            database="db_SASs",
+            database="db_smartattendance",
         )
 
         if conn.is_connected():
@@ -88,17 +88,129 @@ def query_login_credentials(instructor_id: str, password: str):
         conn.close()
 
 # for attendance recording    
-def query_student_id():
-    pass
-
-def query_enrollment():
-    pass
-
-def query_attendance():
-    pass
-
-def record_attendance():
-    pass
+# ADDED: returns full name of student for display in the UI, if student_id is valid
+def query_student_id(student_id: str):
+    conn = get_connection()
+    if not conn:
+        return None
+ 
+    try:
+        curs = conn.cursor()
+        curs.execute("""
+            SELECT first_name, middle_name, last_name
+            FROM student
+            WHERE student_id = %s
+            LIMIT 1
+            """,
+            (student_id,)
+        )
+        row = curs.fetchone()
+        if not row:
+            return None
+        first, middle, last = row
+        return " ".join(filter(None, [first, middle, last]))
+ 
+    except mysql.connector.Error as e:
+        print(f"ERR [query_student_id]: {e}")
+        return None
+ 
+    finally:
+        conn.close()
+ 
+# ADDED: checks if the student is enrolled in the class before allowing attendance recording
+def query_enrollment(student_id: str, class_id: int):
+    conn = get_connection()
+    if not conn:
+        return False
+ 
+    try:
+        curs = conn.cursor()
+        curs.execute("""
+            SELECT 1
+            FROM enrollment e
+            INNER JOIN class c ON c.block_id = e.block_id
+            WHERE e.student_id = %s
+              AND c.class_id = %s
+            LIMIT 1
+            """,
+            (student_id, class_id)
+        )
+        return curs.fetchone() is not None
+ 
+    except mysql.connector.Error as e:
+        print(f"ERR [query_enrollment]: {e}")
+        return False
+ 
+    finally:
+        conn.close()
+ 
+# ADDED: checks if the student has already recorded attendance for the session
+def query_attendance(student_id: str, class_id: int, session_date: date):
+    conn = get_connection()
+    if not conn:
+        return False
+ 
+    try:
+        curs = conn.cursor()
+        curs.execute("""
+            SELECT 1
+            FROM attendance
+            WHERE student_id = %s
+              AND class_id = %s
+              AND date = %s
+              AND status IN ('on time', 'late')
+            LIMIT 1
+            """,
+            (student_id, class_id, session_date)
+        )
+        return curs.fetchone() is not None
+ 
+    except mysql.connector.Error as e:
+        print(f"ERR [query_attendance]: {e}")
+        return False
+ 
+    finally:
+        conn.close()
+ 
+# ADDED: records attendance and returns the status assigned by the trigger
+def record_attendance(student_id: str, class_id: int, session_date: date, session_type: str = "regular"):
+    conn = get_connection()
+    if not conn:
+        return "error"
+ 
+    try:
+        curs = conn.cursor()
+        now = datetime.now().time()
+ 
+        curs.execute("""
+            INSERT INTO attendance (student_id, class_id, date, time, session_type)
+            VALUES (%s, %s, %s, %s, %s)
+            """,
+            (student_id, class_id, session_date, now, session_type)
+        )
+        conn.commit()
+ 
+        # Fetch the status the trigger assigned
+        curs.execute("""
+            SELECT status
+            FROM attendance
+            WHERE student_id = %s
+              AND class_id = %s
+              AND date = %s
+            ORDER BY attendance_id DESC
+            LIMIT 1
+            """,
+            (student_id, class_id, session_date)
+        )
+        row = curs.fetchone()
+        return row[0] if row else "on time"
+ 
+    except mysql.connector.Error as e:
+        print(f"ERR [record_attendance]: {e}")
+        return "error"
+ 
+    finally:
+        conn.close()
 
 
 
