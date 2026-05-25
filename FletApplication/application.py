@@ -61,7 +61,7 @@ def main(page: ft.Page):
             error_snackbar("ERR: Invalid format.")
             return None
 
-    
+
     #* PAGE 0 COMPONENTS
     
     # Login information
@@ -176,6 +176,31 @@ def main(page: ft.Page):
             )
         )
     
+    db_session_details = [
+        ft.Text(value="No active session",
+                style=ft.TextStyle(
+                    weight=ft.FontWeight.NORMAL,
+                    size=14,
+                    color=ft.Colors.ON_SURFACE_VARIANT
+                )
+            ),
+        ft.Text(value="No active session",
+                style=ft.TextStyle(
+                    weight=ft.FontWeight.NORMAL,
+                    size=14,
+                    color=ft.Colors.ON_SURFACE_VARIANT
+                )
+            ),
+        ft.Text(value="No active session",
+                style=ft.TextStyle(
+                    weight=ft.FontWeight.NORMAL,
+                    size=14,
+                    color=ft.Colors.ON_SURFACE_VARIANT
+                )
+            ),
+        ]
+    
+    
     def update_user_details():
         user_greeting.value = f"Welcome, {current_user}"
     
@@ -189,25 +214,25 @@ def main(page: ft.Page):
             "subj": "",
             "sect": "",
             "type": "",
-            "b_id": None,   # block id
-            "c_id": None    # class id
+            "b_id": -1,     # block id
+            "c_id": -1    # class id
         }
     session_details_ui = [
-        ft.Text(value=f"+  SESSION:     {session_details['bgn']} - {session_details['fin']}" if not all(session_details) else "+  SESSION:     None",
+        ft.Text(value="+  SESSION:     None",
                 style=ft.TextStyle(
                     weight=ft.FontWeight.NORMAL,
                     size=14,
                     color=ft.Colors.ON_SURFACE_VARIANT
                 )
             ),
-        ft.Text(value=f"+  SECTION:     {session_details['sect']}" if not all(session_details) else "+  SECTION:     None",
+        ft.Text(value="+  SECTION:     None",
                 style=ft.TextStyle(
                     weight=ft.FontWeight.NORMAL,
                     size=14,
                     color=ft.Colors.ON_SURFACE_VARIANT
                 )
             ),
-        ft.Text(value=f"+  SUBJECT:     {session_details['subj']}" if not all(session_details) else "+  SUBJECT:     None",
+        ft.Text(value="+  SUBJECT:     None",
                 style=ft.TextStyle(
                     weight=ft.FontWeight.NORMAL,
                     size=14,
@@ -217,7 +242,9 @@ def main(page: ft.Page):
         ]
     
     def new_session():
+        update_sect_options()
         nsession_bgn_field.value = datetime.now().strftime("%H:%M")
+        
         current_page.content = page_5
     
     # ID scanner input fields
@@ -227,7 +254,7 @@ def main(page: ft.Page):
             height=495,
             fit=ft.BoxFit.COVER,
         )
-    # camera_preview.src_base64 = ""
+    camera_preview.src_base64 = ""
     video_container = ft.Container(
             bgcolor=ft.Colors.SURFACE_CONTAINER,
             expand=True,
@@ -250,7 +277,7 @@ def main(page: ft.Page):
             "stat": ""
         }
     scanned_id = ft.Text(
-            value=f"    {scanner_output['s_id']}" if not all(scanner_output) else "    None",
+            value="\t\t\tNone",
             style=ft.TextStyle(
                 weight=ft.FontWeight.NORMAL,
                 size=12,
@@ -258,7 +285,7 @@ def main(page: ft.Page):
             )
         )
     scanned_name = ft.Text(
-            value=f"    {scanner_output['name']}" if not all(scanner_output) else "    None",
+            value="\t\t\tNone",
             style=ft.TextStyle(
                 weight=ft.FontWeight.NORMAL,
                 size=12,
@@ -266,7 +293,7 @@ def main(page: ft.Page):
             )
         )
     scan_status = ft.Text(
-            value=f"    {scanner_output['stat']}" if not all(scanner_output) else "    None",
+            value="\t\t\tNone",
             style=ft.TextStyle(
                 weight=ft.FontWeight.NORMAL,
                 size=12,
@@ -302,24 +329,24 @@ def main(page: ft.Page):
         full_name = db.query_student_id()
         if not full_name:
             scanned_id.value = student_id
-            scanned_name.value = "NOT FOUND"
-            scan_status.value = "Invalid ID"
+            scanned_name.value = "\t\t\tNOT FOUND"
+            scan_status.value = "\t\t\tInvalid ID"
             
             return
             
         is_enrolled = db.query_enrollment()
         if not is_enrolled:
             scanned_id.value = student_id
-            scanned_name.value = full_name
-            scan_status.value = "Not Enrolled"
+            scanned_name.value = f"\t\t\t{full_name}"
+            scan_status.value = "\t\t\tNot Enrolled"
             
             return
         
         has_record = db.query_attendance()
         if has_record:
             scanned_id.value = student_id
-            scanned_name.value = full_name
-            scan_status.value = "Record Found"
+            scanned_name.value = f"\t\t\t{full_name}"
+            scan_status.value = "\t\t\tRecord Found"
             
             return
         
@@ -327,8 +354,8 @@ def main(page: ft.Page):
         status = db.record_attendance()
         
         scanned_id.value = student_id
-        scanned_name.value = full_name
-        scan_status.value = f"Recorded: {status.upper()}" if status != "error" else "ERROR recording"
+        scanned_name.value = f"\t\t\t{full_name}"
+        scan_status.value = f"\t\t\tRecorded: {status.upper()}" if status != "error" else "ERROR recording"
             
     
     #* PAGE 3 COMPONENTS
@@ -373,6 +400,7 @@ def main(page: ft.Page):
                 border_color=ft.Colors.SURFACE_BRIGHT,
                 label=ft.Text("Section"),
                 options=section_options,
+                # on_select= 
             )
         )
     filter_subj_dropdown = ft.Container(
@@ -383,6 +411,7 @@ def main(page: ft.Page):
                 border_color=ft.Colors.SURFACE_BRIGHT,
                 label=ft.Text("Subject"),
                 options=subject_options,
+                # on_select=
             )
         )
     
@@ -406,10 +435,8 @@ def main(page: ft.Page):
     #* PAGE 5 COMPONENTS -- New session page
     
     nsession_details ={
-        "bgn": None,
-        "fin": None,
-        "subj": None,
-        "sect": None,
+        "subj": "",
+        "b_id": -1
     }
     
     nsession_type_toggle = ft.SegmentedButton(
@@ -419,7 +446,7 @@ def main(page: ft.Page):
                 ft.Segment(value="regular", label=ft.Text("Regular")),
                 ft.Segment(value="makeup", label=ft.Text("Makeup"))
             ],
-            on_change=lambda e:on_nsession_type_change(e)
+            on_change=lambda e: on_nsession_type_change(e)
         )
     nsession_sect_dropdown = ft.Container(
             height=50,
@@ -429,6 +456,11 @@ def main(page: ft.Page):
                 border_color=ft.Colors.SURFACE_BRIGHT,
                 label=ft.Text("Section"),
                 options=section_options,
+                on_select=lambda e: (
+                    nsession_details.update({"subj": nsession_details['subj'],"b_id": e.data}),
+                    update_subj_options(nsession_details['b_id']),
+                    update_timeslot_options(nsession_details['subj'], nsession_details['b_id'])
+                )
             )
         )
     nsession_subj_dropdown = ft.Container(
@@ -439,6 +471,10 @@ def main(page: ft.Page):
                 border_color=ft.Colors.SURFACE_BRIGHT,
                 label=ft.Text("Subject"),
                 options=subject_options,
+                on_select=lambda e: (
+                    nsession_details.update({"subj": e.data, "b_id": nsession_details['b_id']}),
+                    update_timeslot_options(nsession_details['subj'], nsession_details['b_id'])
+                )
             )
         )
     nsession_bgn_field = ft.TextField(
@@ -465,9 +501,54 @@ def main(page: ft.Page):
                 border_color=ft.Colors.SURFACE_BRIGHT,
                 label=ft.Text("Timeslot"),
                 options=timeslot_options,
+                # on_select=
             )
         )
     nsession_timeslot_select = ft.Container(content=nsession_timeslot_dropdown)
+    
+    def update_sect_options():
+        section_options.clear()
+        
+        blocks = db.get_sections(current_u_id)
+        if not blocks:
+            return
+        
+        for b in blocks:
+            section_options.append(
+                    ft.DropdownOption(
+                        text=f"{b['crs_id']} {b['yr_lvl']}{b['sect']}",
+                        key=b['blk_id'], data=b
+                    )
+                )
+    
+    def update_subj_options(block_id: int):
+        subject_options.clear()
+        
+        subjects = db.get_subjects(current_u_id, block_id)
+        if not subjects:
+            return
+        
+        for s in subjects:
+            subject_options.append(
+                    ft.DropdownOption(
+                        text=s, key=s
+                    )
+                )
+            
+    def update_timeslot_options(subject_id: str, block_id: int):
+        timeslot_options.clear()
+        
+        timeslots = db.get_day_schedules(current_u_id, subject_id, block_id)
+        if not timeslots:
+            return
+        
+        for ts in timeslots:
+            timeslot_options.append(
+                ft.DropdownOption(
+                    text=ts['label'],
+                    data=ts
+                )
+            )
     
     def on_nsession_type_change(e: ft.Event[ft.SegmentedButton]):
         slot_types = {
@@ -479,9 +560,11 @@ def main(page: ft.Page):
         nsession_timeslot_select.content = slot_types.get(selected)
 
     def on_confirm_session():
+        nonlocal camera_active      # TODO: This would probably be better off somewhere else
+        
         is_makeup = nsession_timeslot_select.content == nsession_timeslot_fields
 
-        if nsession_sect_dropdown.content.value is None or nsession_subj_dropdown.content.vaalue is None:
+        if nsession_sect_dropdown.content.value is None or nsession_subj_dropdown.content.value is None:
             error_snackbar("ERR [Section/Subject Dropdown]: No selection.")
             return
         
@@ -507,22 +590,38 @@ def main(page: ft.Page):
                 return
             
             session_details['bgn'] = datetime.now().time()
-            session_details['fin'] = selected['end']
+            session_details['fin'] = selected['sched_fin']
             
-            session_details['sect'] = nsession_sect_dropdown.content.value
-            session_details['subj'] = nsession_subj_dropdown.content.value
+            session_details['sect'] = nsession_sect_dropdown.content.text
+            session_details['subj'] = nsession_details['subj']
+            session_details['b_id'] = nsession_details['b_id']
             session_details['type'] = "makeup" if is_makeup else "regular"
-            # TODO: How tf do we get the class ID
-            # session_details['c_id'] = 
-            
+            session_details['c_id'] = db.get_class_id(current_u_id, session_details['subj'], session_details['b_id'])
+
             setattr(nsession_bgn_field, 'value', "")
             setattr(nsession_fin_field, 'value', "")
-            setattr(nsession_sect_dropdown.content, 'value', None)
-            setattr(nsession_subj_dropdown.content, 'value', None)
-            setattr(nsession_timeslot_dropdown.content, 'value', None)
+            setattr(nsession_sect_dropdown.content, 'value', "Default")
+            setattr(nsession_subj_dropdown.content, 'value', "Default")
+            setattr(nsession_timeslot_dropdown.content, 'value', "Default")
 
+            nsession_details['subj'] = ""
+            nsession_details['b_id'] = -1
+
+            update_session_ui_comp()
+            camera_active = True
             current_page.content = page_2
+            start_scanner_thread()
             
+    def update_session_ui_comp():
+        session_details_ui[0].value = f"+  SESSION:     {session_details['bgn'].strftime('%I:%M %p')} - {session_details['fin'].strftime('%I:%M %p')}"
+        session_details_ui[1].value = f"+  SECTION:     {session_details['sect']}"
+        session_details_ui[2].value = f"+  SUBJECT:     {session_details['subj']}"
+        
+        db_session_details[0].value = f"{session_details['bgn'].strftime('%I:%M %p')} - {session_details['fin'].strftime('%I:%M %p')}"
+        db_session_details[1].value = f"{session_details['sect']}"
+        db_session_details[2].value = f"{session_details['subj']}"
+        
+        
     
     #* PAGE 6 COMPONENTS -- Expand session
     # dt_session_log = ft.DataTable()
@@ -613,33 +712,15 @@ def main(page: ft.Page):
                                     ),
                                 ft.Row([
                                     ft.Icon(icon=ft.Icons.TIMER, size=14),
-                                    ft.Text(value=f"{session_details['bgn']} - {session_details['fin']}" if not all(session_details) else "No active session",
-                                        style=ft.TextStyle(
-                                            weight=ft.FontWeight.NORMAL,
-                                            size=14,
-                                            color=ft.Colors.ON_SURFACE_VARIANT
-                                        )
-                                    ),
+                                    db_session_details[0]
                                 ]),
                                 ft.Row([
                                     ft.Icon(icon=ft.Icons.PERSON_2_OUTLINED, size=14),
-                                    ft.Text(value=f"{session_details['sect']}" if not all(session_details) else "No active session",
-                                        style=ft.TextStyle(
-                                            weight=ft.FontWeight.NORMAL,
-                                            size=14,
-                                            color=ft.Colors.ON_SURFACE_VARIANT
-                                        )
-                                    ),
+                                    db_session_details[1]
                                 ]),
                                 ft.Row([
                                     ft.Icon(icon=ft.Icons.RECEIPT_ROUNDED, size=14),
-                                    ft.Text(value=f"{session_details['subj']}" if not all(session_details) else "No active session",
-                                        style=ft.TextStyle(
-                                            weight=ft.FontWeight.NORMAL,
-                                            size=14,
-                                            color=ft.Colors.ON_SURFACE_VARIANT
-                                        )
-                                    ),
+                                    db_session_details[2]
                                 ]),
                             ], margin=ft.Margin(20, 15, 20, 15)
                         )
@@ -757,7 +838,10 @@ def main(page: ft.Page):
                                                 bgcolor = ft.Colors.SURFACE_CONTAINER_HIGHEST,
                                                 elevation=30,
                                             ),
-                                            on_click=lambda e: new_session(),
+                                            on_click=lambda e: (
+                                                kill_scanner_thread(),
+                                                new_session(),
+                                            ),
                                         ),
                                     ], spacing=118
                                 ),
@@ -906,6 +990,7 @@ def main(page: ft.Page):
                         ft.IconButton(
                                 icon=ft.Icons.CANCEL_OUTLINED,
                                 on_click=lambda e: (
+                                        start_scanner_thread() if all(session_details) else None,
                                         setattr(current_page, "content", page_2),
                                     )
                                 )
@@ -971,12 +1056,9 @@ def main(page: ft.Page):
 
     # Start camera thread
     def start_scanner_thread():
-        nonlocal camera_active
-        
         if session_details['bgn'] == None or session_details['fin'] == None or session_details['subj'] == None or session_details['sect'] == None:
             return
 
-        camera_active = True
         _scanner_stop_event.clear()  # Clear and reset threading
         threading.Thread(
             target=cv.capture_frames,
@@ -986,9 +1068,6 @@ def main(page: ft.Page):
 
     # End thread
     def kill_scanner_thread():
-        nonlocal camera_active
-        
-        camera_active = False
         _scanner_stop_event.set()  # Signal the thread to stop
     
     
@@ -997,8 +1076,9 @@ def main(page: ft.Page):
     def set_page(e: ft.Event[ft.NavigationBar]):
         i = e.control.selected_index
         if i == 0:
-            start_dashb_time_thread()
             update_cam_status()
+            start_dashb_time_thread()
+            kill_scanner_thread()
             current_page.content = page_1
         elif i == 1:
             kill_dashb_time_thread()
@@ -1012,6 +1092,7 @@ def main(page: ft.Page):
             kill_dashb_time_thread()
             kill_scanner_thread()
             current_page.content = page_4
+            update_sect_options()
     
     # For navigation
     navbar = ft.NavigationBar(destinations=[

@@ -181,6 +181,38 @@ def get_subjects(instructor_id: str, block_id: int):
     finally: 
         conn.close()
 
+# for attendance recording
+def get_class_id(instructor_id: str, subject_id: str, block_id: int):
+    conn = get_connection()
+    if not conn:
+        return None
+    
+    try:
+        curs = conn.cursor()
+
+        curs.execute("""
+                SELECT c.class_id
+                FROM class c
+                WHERE c.instructor_id = %s
+                    AND c.subject_id = %s
+                    AND c.block_id = %s
+            """,
+            (instructor_id, subject_id, block_id)
+        )
+        c_id = curs.fetchone()
+
+        if not c_id:
+            return None
+        
+        return c_id[0]
+
+    except mysql.connector.Error as e:
+        print(f"ERR: {e}")
+        return None
+
+    finally: 
+        conn.close()
+
 # convert timedelta to time
 def _td_to_time(td) -> time:
     if isinstance(td, timedelta):
@@ -205,7 +237,7 @@ def get_day_schedules(instructor_id: str, subject_id: str, block_id: int):
         curs = conn.cursor()
 
         curs.execute("""
-                SELECT sc.sched_start, sc.sched_end, c.class_id
+                SELECT sc.sched_start, sc.sched_end
                 FROM schedule sc
                 INNER JOIN class c ON sc.class_id = c.class_id
                 INNER JOIN block b ON c.block_id = b.block_id
@@ -214,7 +246,7 @@ def get_day_schedules(instructor_id: str, subject_id: str, block_id: int):
                     AND c.subject_id = %s
                     AND b.block_id = %s
             """,
-            (today_str, instructor_id, subject_id, block_id)
+            ("wednesday", instructor_id, subject_id, block_id)
         )
         rows = curs.fetchall()
 
@@ -222,7 +254,7 @@ def get_day_schedules(instructor_id: str, subject_id: str, block_id: int):
             return None
         
         slots = []
-        for raw_bgn, raw_fin, cls_id in rows:
+        for raw_bgn, raw_fin in rows:
             bgn = _td_to_time(raw_bgn)
             fin = _td_to_time(raw_fin)
             label = f"{bgn.strftime('%I:%M %p')} - {fin.strftime('%I:%M %p')}"
@@ -230,7 +262,6 @@ def get_day_schedules(instructor_id: str, subject_id: str, block_id: int):
                 'sched_bgn': bgn,
                 'sched_fin': fin,
                 'label': label,
-                'cls_id': cls_id
             }
             slots.append(slot)
         
