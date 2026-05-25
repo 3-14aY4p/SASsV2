@@ -189,7 +189,8 @@ def main(page: ft.Page):
             "subj": "",
             "sect": "",
             "type": "",
-            "c_id": ""
+            "b_id": None,   # block id
+            "c_id": None    # class id
         }
     session_details_ui = [
         ft.Text(value=f"+  SESSION:     {session_details['bgn']} - {session_details['fin']}" if not all(session_details) else "+  SESSION:     None",
@@ -290,7 +291,6 @@ def main(page: ft.Page):
 
         log_attendance(ret_string)
         
-
     def log_attendance(student_id: str):
         if not all(session_details.values()):
             error_snackbar("ERR: No active session.")
