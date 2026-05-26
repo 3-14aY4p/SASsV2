@@ -157,7 +157,7 @@ def main(page: ft.Page):
                             ),
                         )
 
-    recent_activity_column = ft.Column(controls=[])
+    recent_activity_column = ft.Column(controls=[], scroll=ft.ScrollMode.AUTO)
     day_schedule_column = ft.Column(controls=[])
 
     user_greeting = ft.Text(value=f"Welcome, {current_user}",
@@ -219,7 +219,7 @@ def main(page: ft.Page):
     def update_recent_activity():
         recent_activity_column.controls.clear()
         
-        rows = db.get_attendance_log(current_u_id)
+        rows = db.get_attendance_log()
         if rows:
             index = 0
             for r in rows:
@@ -229,7 +229,11 @@ def main(page: ft.Page):
                 )
                 if index == 5:
                     break
-
+        else:
+            recent_activity_column.controls.append(
+                    ft.Text("No recent activity.", size=11)
+                )
+            
     def update_day_schedule():
         day_schedule_column.controls.clear()
         schedules = db.get_all_schedules(current_u_id)
@@ -243,7 +247,7 @@ def main(page: ft.Page):
             is_today: bool
             
             for s in schedules:
-                is_today = s.get('day').lower() == today_str
+                is_today = str(s.get('day')).capitalize == today_str
                 if is_today:
                     day_schedule_column.controls.append(
                         ft.Container(
@@ -255,7 +259,7 @@ def main(page: ft.Page):
                                     ft.Text(f"{s.get('sub_id','')} — {s.get('sub_tt','')}",
                                             style=ft.TextStyle(weight=ft.FontWeight.BOLD, size=15,
                                                             color=ft.Colors.ON_SURFACE_VARIANT)),
-                                    ft.Text(f"{s.get('crs_id','')} {s.get('yr_lvl','')}{s.get('sect','')}  |  {s.get('day','').capitalize()}  |  {s.get('label','')}",
+                                    ft.Text(f"{s.get('crs_id','')} {s.get('yr_lvl','')}{s.get('sect','')}  |  {str(s.get('day')).capitalize}  |  {s.get('label','')}",
                                             style=ft.TextStyle(size=13, color=ft.Colors.ON_SURFACE_VARIANT)),
                                 ], spacing=4),
                             ])
@@ -475,7 +479,7 @@ def main(page: ft.Page):
             horizontal_lines=ft.border.BorderSide(1, ft.Colors.SURFACE_BRIGHT),
             heading_row_color=ft.Colors.SURFACE_CONTAINER_LOW,
             columns=[
-                ft.DataColumn(label=ft.Text("TIME")),
+                ft.DataColumn(label=ft.Text("TIMESTAMP")),
                 ft.DataColumn(label=ft.Text("NAME")),
                 ft.DataColumn(label=ft.Text("SECTION")),
                 ft.DataColumn(label=ft.Text("STATUS")),
@@ -486,7 +490,7 @@ def main(page: ft.Page):
     def update_attendance_log():
         dt_attendance_log.rows.clear()
         
-        rows = db.get_attendance_log(current_u_id)
+        rows = db.get_attendance_log(session_details['c_id'], session_details['fin'])
         if rows:
             for r in rows:
                 dt_attendance_log.rows.append(
@@ -547,13 +551,55 @@ def main(page: ft.Page):
             heading_row_color=ft.Colors.SURFACE_CONTAINER_LOW,
             columns=[
                 ft.DataColumn(label=ft.Text("DATE")),
-                ft.DataColumn(label=ft.Text("START TIME")),
+                ft.DataColumn(label=ft.Text("TIME")),
+                ft.DataColumn(label=ft.Text("TYPE")),
                 ft.DataColumn(label=ft.Text("SUBJECT CODE")),
                 ft.DataColumn(label=ft.Text("SECTION")),
                 ft.DataColumn(label=ft.Text("")),
             ],
             rows=[],
         )
+    
+    def update_class_log():
+        dt_class_log.rows.clear()
+        
+        rows = db.get_class_log(current_u_id)
+        if rows:
+            for r in rows:
+                row_data = r
+                expand_btn = ft.IconButton(
+                    icon=ft.Icons.ARROW_OUTWARD,
+                    on_click=lambda e, d=row_data: expand_class_item(d)
+                )
+                dt_class_log.rows.append(
+                    ft.DataRow(cells=[
+                            ft.DataCell(ft.Text(str(r['date']), size=12)),
+                            ft.DataCell(ft.Text(r['time_label'], size=12)),
+                            ft.DataCell(ft.Text(r['type'], size=12)),
+                            ft.DataCell(ft.Text(r['subj'], size=12)),
+                            ft.DataCell(ft.Text(f"{r['crs_id']} {r['yr_lvl']}{r['sect']}", size=12)),
+                            ft.DataCell(expand_btn)
+                        ]
+                    )
+                )
+    
+    def on_apply_filter():
+        pass
+    
+    def expand_class_item(class_data: dict):
+        nonlocal selected_session
+        
+        selected_session = class_data
+        
+        selected_session_ui[0].value = f"+ {selected_session['date']}"
+        selected_session_ui[1].value = f"+ {selected_session['time_label']}"
+        selected_session_ui[2].value = f"+ {selected_session['type']} class"
+        selected_session_ui[3].value = f"{selected_session['subj']}"
+        selected_session_ui[4].value = f"{selected_session['crs_id']} {selected_session['yr_lvl']}{selected_session['sect']}"
+        
+        update_session_log()
+        
+        current_page.content = page_6
     
     
     #* PAGE 5 COMPONENTS -- New session page
@@ -743,11 +789,11 @@ def main(page: ft.Page):
         
     def update_session_ui_comp(revert_to_default: bool = False):
         if not revert_to_default:
-            session_details_ui[0].value = f"+  SESSION:     {session_details['bgn'].strftime('%I:%M %p')} - {session_details['fin'].strftime('%I:%M %p')}"
+            session_details_ui[0].value = f"+  SESSION:     {session_details['bgn'].strftime('%I:%M %p')} – {session_details['fin'].strftime('%I:%M %p')}"
             session_details_ui[1].value = f"+  SECTION:     {session_details['sect']}"
             session_details_ui[2].value = f"+  SUBJECT:     {session_details['subj']}"
             
-            db_session_details[0].value = f"{session_details['bgn'].strftime('%I:%M %p')} - {session_details['fin'].strftime('%I:%M %p')}"
+            db_session_details[0].value = f"{session_details['bgn'].strftime('%I:%M %p')} – {session_details['fin'].strftime('%I:%M %p')}"
             db_session_details[1].value = f"{session_details['sect']}"
             db_session_details[2].value = f"{session_details['subj']}"
         
@@ -762,9 +808,75 @@ def main(page: ft.Page):
 
     
     #* PAGE 6 COMPONENTS -- Expand session
-    # dt_session_log = ft.DataTable()
+    selected_session = {}
+    selected_session_ui = [
+        ft.Text(value="---",
+                style=ft.TextStyle(
+                    weight=ft.FontWeight.NORMAL,
+                    size=15,
+                    color=ft.Colors.ON_SURFACE_VARIANT
+                )
+            ),
+        ft.Text(value="---",
+                style=ft.TextStyle(
+                    weight=ft.FontWeight.NORMAL,
+                    size=15,
+                    color=ft.Colors.ON_SURFACE_VARIANT
+                )
+            ),
+        ft.Text(value="---",
+                style=ft.TextStyle(
+                    weight=ft.FontWeight.NORMAL,
+                    size=15,
+                    color=ft.Colors.ON_SURFACE_VARIANT
+                )
+            ),
+        ft.Text(value="---",
+                style=ft.TextStyle(
+                    weight=ft.FontWeight.NORMAL,
+                    size=15,
+                    color=ft.Colors.ON_SURFACE_VARIANT
+                )
+            ),
+        ft.Text(value="---",
+                style=ft.TextStyle(
+                    weight=ft.FontWeight.NORMAL,
+                    size=15,
+                    color=ft.Colors.ON_SURFACE_VARIANT
+                )
+            ),
+        ]
     
+    dt_session_log = ft.DataTable(
+            align=ft.Alignment.TOP_CENTER,
+            width=WIDTH, expand=True,
+            border=ft.Border.all(2, ft.Colors.SURFACE_BRIGHT),
+            horizontal_lines=ft.border.BorderSide(1, ft.Colors.SURFACE_BRIGHT),
+            heading_row_color=ft.Colors.SURFACE_CONTAINER_LOW,
+            columns=[
+                ft.DataColumn(label=ft.Text("TIMESTAMP")),
+                ft.DataColumn(label=ft.Text("NAME")),
+                ft.DataColumn(label=ft.Text("ID NO.")),
+                ft.DataColumn(label=ft.Text("STATUS")),
+            ],
+            rows=[],
+        )
     
+    def update_session_log():
+        dt_session_log.rows.clear()
+        
+        rows = db.get_session_attendance()
+        # if rows:
+        #     for r in rows:
+        #         dt_attendance_log.rows.append(
+        #             ft.DataRow(cells=[
+        #                     ft.DataCell(ft.Text(str(r['time']))),
+        #                     ft.DataCell(ft.Text(r['student_name'])),
+        #                     ft.DataCell(ft.Text(f"{r['course_id']} {r['year_level']}{r['section']}")),
+        #                     ft.DataCell(ft.Text(r['status'])),
+        #                 ]
+        #             )
+        #         )
     
     
     #* PAGE SETUP; UI/UX
@@ -876,6 +988,7 @@ def main(page: ft.Page):
                                         color=ft.Colors.ON_SURFACE_VARIANT
                                     )
                                 ),
+                            ft.Divider(),
                             recent_activity_column,
                             ], margin=ft.Margin(20, 15, 20, 15),
                         )
@@ -1013,6 +1126,7 @@ def main(page: ft.Page):
                                             color=ft.Colors.ON_SURFACE_VARIANT
                                         )
                                     ),
+                                ft.Divider(),
                                 ft.Text(value="+  STUDENT ID #",
                                         style=ft.TextStyle(
                                             weight=ft.FontWeight.BOLD,
@@ -1037,7 +1151,7 @@ def main(page: ft.Page):
                                         )
                                     ),
                                 scan_status,
-                                ], align=ft.Alignment.TOP_LEFT, margin=ft.Margin(30, 20, 30, 20), spacing=15
+                                ], align=ft.Alignment.TOP_LEFT, margin=ft.Margin(30, 20, 30, 20), spacing=12
                             ),
                         ),
                     ], spacing=30)
@@ -1069,11 +1183,12 @@ def main(page: ft.Page):
                     content=ft.Column([
                             ft.Row([
                                 ft.Text(value="FILTERS",
-                                    style=ft.TextStyle(
-                                        weight=ft.FontWeight.BOLD,
-                                        size=20,
-                                        color=ft.Colors.ON_SURFACE_VARIANT
-                                    )),
+                                        style=ft.TextStyle(
+                                            weight=ft.FontWeight.BOLD,
+                                            size=20,
+                                            color=ft.Colors.ON_SURFACE_VARIANT
+                                        )
+                                    ),
                                 ft.IconButton(
                                         icon=ft.Icons.RESTART_ALT,
                                         on_click=lambda e: (
@@ -1083,7 +1198,7 @@ def main(page: ft.Page):
                                             setattr(filter_subj_dropdown.content, 'value', None),
                                         )
                                     )
-                            ], spacing=180),
+                            ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
                             ft.Row([
                                 filter_date_field,
                                 filter_time_field,
@@ -1098,7 +1213,8 @@ def main(page: ft.Page):
                                 style=ft.ButtonStyle(
                                     shape=ft.RoundedRectangleBorder(radius=10),
                                     bgcolor=ft.Colors.SURFACE_CONTAINER_HIGH
-                                )
+                                ),
+                                on_click=lambda e: on_apply_filter()
                             )
                         ], margin=20, spacing=15
                     )
@@ -1166,11 +1282,121 @@ def main(page: ft.Page):
         )
     )
     
-    # TODO: Expanded previous sessions page
+    # Expanded previous-session page
+    page_6 = ft.Container(
+        align=ft.Alignment.TOP_CENTER,
+        margin=30,
+        content=ft.Row([
+                ft.Container(
+                    align=ft.Alignment.TOP_CENTER,
+                    bgcolor=ft.Colors.SURFACE_CONTAINER,
+                    expand=2, height=420,
+                    border_radius=20,
+                    content=ft.Column([
+                            ft.Row([
+                                    ft.Text(value="SESSION DETAILS",
+                                        style=ft.TextStyle(
+                                            weight=ft.FontWeight.BOLD,
+                                            size=20,
+                                            color=ft.Colors.ON_SURFACE_VARIANT
+                                        )
+                                    ),
+                                    ft.IconButton(
+                                        icon=ft.Icons.EXIT_TO_APP,
+                                        on_click=lambda e: (
+                                                setattr(current_page, 'content', page_4),
+                                            )
+                                        )
+                                    ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN
+                                ),
+                            ft.Divider(),
+                            ft.Row([
+                                ft.Column([
+                                        ft.Text(value="SESSION DATE: ",
+                                                style=ft.TextStyle(
+                                                    weight=ft.FontWeight.BOLD,
+                                                    size=16,
+                                                    color=ft.Colors.ON_SURFACE_VARIANT
+                                                )
+                                            ),
+                                            selected_session_ui[0]
+                                            ], spacing=1
+                                        ),
+                                ft.Column([
+                                        ft.Text(value="SESSION TYPE: ",
+                                                style=ft.TextStyle(
+                                                    weight=ft.FontWeight.BOLD,
+                                                    size=16,
+                                                    color=ft.Colors.ON_SURFACE_VARIANT
+                                                )
+                                            ),
+                                        selected_session_ui[2]
+                                        ], spacing=1
+                                    ),
+                                    ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN
+                                ),
+                            ft.Column([
+                                    ft.Text(value="TIME PERIOD: ",
+                                            style=ft.TextStyle(
+                                                weight=ft.FontWeight.BOLD,
+                                                size=16,
+                                                color=ft.Colors.ON_SURFACE_VARIANT
+                                            )
+                                        ),
+                                    selected_session_ui[1]
+                                    ], spacing=1
+                                ),
+                            ft.Divider(),
+                            ft.Column([
+                                ft.Row([
+                                        ft.Text(value="+ SECTION: ",
+                                                style=ft.TextStyle(
+                                                    weight=ft.FontWeight.BOLD,
+                                                    size=16,
+                                                    color=ft.Colors.ON_SURFACE_VARIANT
+                                                )
+                                            ),
+                                        selected_session_ui[3]
+                                        ], spacing=1
+                                    ),
+                                ft.Row([
+                                        ft.Text(value="+ SUBJECT: ",
+                                                style=ft.TextStyle(
+                                                    weight=ft.FontWeight.BOLD,
+                                                    size=16,
+                                                    color=ft.Colors.ON_SURFACE_VARIANT
+                                                )
+                                            ),
+                                            selected_session_ui[4]
+                                            ], spacing=1
+                                        ),
+                                    ],
+                                ),
+                            ft.Button(
+                                expand=True, width=310, height=50,
+                                align=ft.Alignment.BOTTOM_RIGHT,
+                                content="EXPORT SHEET",
+                                style=ft.ButtonStyle(
+                                        shape=ft.RoundedRectangleBorder(radius=10),
+                                        bgcolor=ft.Colors.SURFACE_CONTAINER_HIGH
+                                    ),
+                                    # on_click=
+                                ),
+                        ], margin=20, spacing=15
+                    )
+                ),
+                ft.Column([
+                        dt_session_log,
+                    ], scroll=ft.ScrollMode.AUTO, expand=5
+                ),
+            ], spacing=30
+        )
+    )
+    
     # TODO: Expanded session analytics page
     
     
-    
+
      #* THREADING FUNCTIONS
 
     # For updating date and time in dashboard
@@ -1238,22 +1464,30 @@ def main(page: ft.Page):
             update_cam_status()
             update_recent_activity()
             kill_scanner_thread()
+            
             current_page.content = page_1
+            
         elif i == 1:
             kill_dashb_time_thread()
             if not camera_active and session_active:
                 start_scanner_thread()
+                
             current_page.content = page_2
+            
         elif i == 2:
             kill_dashb_time_thread()
             kill_scanner_thread()
             update_attendance_log()
+            
             current_page.content = page_3
+            
         elif i == 3:
             kill_dashb_time_thread()
             kill_scanner_thread()
-            current_page.content = page_4
             update_sect_options()
+            update_class_log()
+            
+            current_page.content = page_4
     
     # For navigation
     navbar = ft.NavigationBar(destinations=[
@@ -1281,7 +1515,7 @@ def main(page: ft.Page):
     
     # Navbar and Page Containers (updateable)
     current_navi = ft.Container(content=None)
-    current_page = ft.Container(content=page_0) # TODO: Revert to defaults after setup
+    current_page = ft.Container(content=page_0)
     
 
     def close_app():

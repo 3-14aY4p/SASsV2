@@ -353,7 +353,7 @@ def get_day_schedules(instructor_id: str, subject_id: str, block_id: int):
                     AND c.subject_id = %s
                     AND b.block_id = %s
             """,
-            ("wednesday", instructor_id, subject_id, block_id)    # TODO: Revert to today_str after debug
+            ("wednesday", instructor_id, subject_id, block_id)    # FIXME: Revert to today_str after debug
         )
         rows = curs.fetchall()
 
@@ -364,7 +364,7 @@ def get_day_schedules(instructor_id: str, subject_id: str, block_id: int):
         for raw_bgn, raw_fin in rows:
             bgn = _td_to_time(raw_bgn)
             fin = _td_to_time(raw_fin)
-            label = f"{bgn.strftime('%I:%M %p')} - {fin.strftime('%I:%M %p')}"
+            label = f"{bgn.strftime('%I:%M %p')} – {fin.strftime('%I:%M %p')}"
             slot = {
                 'sched_bgn': bgn,
                 'sched_fin': fin,
@@ -416,7 +416,7 @@ def get_all_schedules(instructor_id: str):
         for sub_id, sub_tt, crs_id, yr_lvl, sect, day, raw_bgn, raw_fin in rows:
             bgn = _td_to_time(raw_bgn)
             fin = _td_to_time(raw_fin)
-            label = f"{bgn.strftime('%I:%M %p')} - {fin.strftime('%I:%M %p')}"
+            label = f"{bgn.strftime('%I:%M %p')} – {fin.strftime('%I:%M %p')}"
             schedule= {
                 "sub_id": sub_id,
                 "sub_tt": sub_tt,
@@ -440,8 +440,8 @@ def get_all_schedules(instructor_id: str):
         conn.close()
 
 
-# get attendance log for the current day
-def get_attendance_log(instructor_id: str):
+# get attendance log for the current day or session
+def get_attendance_log(class_id: int = None, session_end: time = None):
     conn = get_connection()
     if not conn:
         return None
@@ -449,7 +449,22 @@ def get_attendance_log(instructor_id: str):
     try:
         curs = conn.cursor()
 
-        curs.execute("""
+        filters = ["a.date = CURDATE()"]
+        params = []
+
+        # the toggle for it being the day or session
+        if class_id:
+            filters.append("c.class_id = %s")
+            params.append(class_id)
+        if session_end:
+            filters.append("a.session_end = %s")
+            params.append(str(session_end))
+
+        filters.append("a.status NOT IN ('absent')")            
+
+        where = " AND ".join(filters)
+
+        curs.execute(f"""
                 SELECT a.time, a.status,
                     CONCAT_WS(' ', s.first_name, s.middle_name, s.last_name) AS student_name,
                     s.student_id,
@@ -458,19 +473,16 @@ def get_attendance_log(instructor_id: str):
                 INNER JOIN student s ON a.student_id = s.student_id
                 INNER JOIN class c ON a.class_id = c.class_id
                 INNER JOIN block b ON c.block_id = b.block_id
-                WHERE a.date = CURDATE()
-                    AND c.instructor_id = %s
-                    AND a.status NOT IN ('absent')
+                WHERE {where}
                 ORDER BY a.time DESC
             """,
-            (instructor_id,)
+            params
         )
         logs = curs.fetchall()
         
         if not logs:
             return None
-        
-        # Store data into dictionary
+
         cols = [column[0] for column in curs.description]
         rows = [dict(zip(cols, row)) for row in logs]
 
@@ -483,8 +495,9 @@ def get_attendance_log(instructor_id: str):
     finally: 
         conn.close()
 
-# TODO: get list of all classes
-def get_class_log(instructor_id: str):
+# get list of all classes
+def get_class_log(instructor_id: str, session_date: date = None, session_start: time = None,
+                  class_id: int = None, subject_id: str = None):
     conn = get_connection()
     if not conn:
         return None
@@ -492,17 +505,64 @@ def get_class_log(instructor_id: str):
     try:
         curs = conn.cursor()
 
-        curs.execute("""
+        filters = ["c.instructor_id = %s"]
+        params = [instructor_id]
 
+        # optional filters
+        if session_date:
+            filters.append("a.date = %s")
+            params.append(str(session_date))
+        if session_start:
+            filters.append("a.session_start = %s")
+            params.append(str(session_start))
+        if class_id:
+            filters.append("c.class_id = %s")
+            params.append((class_id))
+        if subject_id:
+            filters.append("c.subject_id = %s")
+            params.append(subject_id)
+
+        where = " AND ".join(filters)
+
+        curs.execute(f"""
+                SELECT DISTINCT a.date, a.session_start, a.session_end, a.session_type,
+                    s.subject_id,
+                    b.course_id, b.year_level, b.section,
+                    c.class_id
+                FROM attendance a
+                INNER JOIN class c ON a.class_id = c.class_id
+                INNER JOIN subject s ON c.subject_id = s.subject_id
+                INNER JOIN block b ON c.block_id = b.block_id
+                WHERE {where}
+                ORDER BY a.date DESC, a.session_start ASC
             """,
-            ()
+            params
         )
-        value = curs.fetchall()
-
-        if not value:
-            return None
+        rows = curs.fetchall()
         
-        return value
+        if not rows:
+            return None
+
+        logs = []
+        for date, raw_bgn, raw_fin, stype, subj, crs_id, yr_lvl, sect, c_id in rows:
+            bgn = _td_to_time(raw_bgn)
+            fin = _td_to_time(raw_fin)
+            label = f"{bgn.strftime('%I:%M %p')} – {fin.strftime('%I:%M %p')}"
+            log = {
+                'date': date,
+                'sched_bgn': bgn,
+                'sched_fin': fin,
+                'time_label': label,
+                'type': stype,
+                'subj': subj,
+                'c_id': c_id,
+                "crs_id": crs_id,
+                "yr_lvl": yr_lvl,
+                "sect": sect
+            }
+            logs.append(log)
+
+        return logs
 
     except mysql.connector.Error as e:
         print(f"ERR: {e}")
@@ -538,6 +598,7 @@ def get_session_attendance():
 
     finally: 
         conn.close()
+
 
 # TODO: retrieve data regarding students performance (you can shorten this into 1-2 functions)
 def get_all_students_in_class():
