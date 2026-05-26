@@ -1,6 +1,7 @@
 # Module/Library imports
 import threading
 import time as t
+import os
 from datetime import date
 from datetime import time
 from datetime import datetime
@@ -596,6 +597,9 @@ def main(page: ft.Page):
                 )
     
     def expand_class_item(class_data: dict):
+        nonlocal selected_session
+        selected_session = class_data
+        
         dt_session_log.rows.clear()
         
         selected_session_ui[0].value = f"+ {class_data['date']}"
@@ -899,8 +903,10 @@ def main(page: ft.Page):
         )
     
     def on_export_sheet():
-        pass
-    
+        file_path = db.export_sheet(selected_session['c_id'], selected_session['date'], 
+                                    selected_session['sched_bgn'], selected_session['sched_fin'])
+        
+        alert_snackbar(f"SUCCESS: File successfully exported as \"{file_path}\".")
     
     
     #* PAGE SETUP; UI/UX
@@ -1437,7 +1443,7 @@ def main(page: ft.Page):
     
     _dashb_time_stop_event = threading.Event()
     
-    def start_dashb_time_thread(): # TODO: Add this function upon login success
+    def start_dashb_time_thread(): 
         _dashb_time_stop_event.clear()
         threading.Thread(
             target=update_time,

@@ -3,6 +3,7 @@ from datetime import timedelta
 from datetime import date
 from datetime import time
 from datetime import datetime
+import pandas as pd
 
 # FUNCTION TEMPLATE -- Use this, please
 '''
@@ -628,6 +629,55 @@ def get_absent_students_in_class():
 
 #* FILE EXPORT
 
-# TODO: export attendance into .xlsx (excel sheet)
-def export_sheet():
-    pass
+# export attendance into .xlsx (excel sheet)
+def export_sheet(class_id: int, session_date: date, session_start: time, session_end: time):
+    conn = get_connection()
+    if not conn:
+        return None
+    
+    try:
+        curs = conn.cursor()
+
+        curs.execute("""
+            SELECT s.student_id,
+                CONCAT_WS(' ', s.first_name, s.middle_name, s.last_name) AS student_name,
+                a.time, a.status
+            FROM attendance a
+            INNER JOIN class c ON a.class_id = c.class_id
+            INNER JOIN student s ON a.student_id = s.student_id
+            WHERE c.class_id = %s
+                AND a.date = %s
+                AND a.session_start = %s
+                AND a.session_end = %s
+            ORDER BY a.date DESC, a.time DESC
+            """,
+            (class_id, session_date, session_start, session_end)
+        )
+        rows = curs.fetchall()
+        
+        if not rows:
+            return None
+        
+        file_path = f"attendance_{session_date}_{session_start}-{session_end}.xlsx"
+        
+        sheet_data = []
+        for s_id, name, time, status in rows:
+            sd = {
+                "ID NO.": s_id, 
+                "NAME": name, 
+                "TIMESTAMP": _td_to_time(time).strftime('%I:%M %p'), 
+                "STATUS": status.capitalize()
+            }
+            sheet_data.append(sd)
+            
+        df = pd.DataFrame(sheet_data)
+        df.to_excel(f"attendance_{session_date}_{session_start}-{session_end}.xlsx", sheet_name=f"{session_date}")
+        
+        return file_path
+
+    except mysql.connector.Error as e:
+        print(f"ERR: {e}")
+        return None
+
+    finally: 
+        conn.close()
