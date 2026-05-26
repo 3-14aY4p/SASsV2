@@ -560,16 +560,16 @@ def main(page: ft.Page):
             rows=[],
         )
     
-    def update_class_log():
+    def update_class_log(instructor_id: str, session_date: date = None, session_start: time = None,
+                  block_id: int = None, subject_id: str = None):
         dt_class_log.rows.clear()
         
-        rows = db.get_class_log(current_u_id)
+        rows = db.get_class_log(instructor_id, session_date, session_start, block_id, subject_id)
         if rows:
             for r in rows:
-                row_data = r
                 expand_btn = ft.IconButton(
                     icon=ft.Icons.ARROW_OUTWARD,
-                    on_click=lambda e, d=row_data: expand_class_item(d)
+                    on_click=lambda e, d=r: expand_class_item(d)
                 )
                 dt_class_log.rows.append(
                     ft.DataRow(cells=[
@@ -582,25 +582,61 @@ def main(page: ft.Page):
                         ]
                     )
                 )
-    
-    def on_apply_filter():
-        pass
+        else:
+            dt_class_log.rows.append(
+                    ft.DataRow(cells=[
+                            ft.DataCell(ft.Text('----------', size=12)),
+                            ft.DataCell(ft.Text('------ ----- ------', size=12)),
+                            ft.DataCell(ft.Text('------', size=12)),
+                            ft.DataCell(ft.Text('----', size=12)),
+                            ft.DataCell(ft.Text('----', size=12)),
+                            ft.DataCell(ft.Text('     ', size=12))
+                        ]
+                    )
+                )
     
     def expand_class_item(class_data: dict):
-        nonlocal selected_session
+        dt_session_log.rows.clear()
         
-        selected_session = class_data
-        
-        selected_session_ui[0].value = f"+ {selected_session['date']}"
-        selected_session_ui[1].value = f"+ {selected_session['time_label']}"
-        selected_session_ui[2].value = f"+ {selected_session['type']} class"
-        selected_session_ui[3].value = f"{selected_session['subj']}"
-        selected_session_ui[4].value = f"{selected_session['crs_id']} {selected_session['yr_lvl']}{selected_session['sect']}"
-        
-        update_session_log()
+        selected_session_ui[0].value = f"+ {class_data['date']}"
+        selected_session_ui[1].value = f"+ {class_data['time_label']}"
+        selected_session_ui[2].value = f"+ {class_data['type']} class"
+        selected_session_ui[3].value = f"{class_data['subj']}"
+        selected_session_ui[4].value = f"{class_data['crs_id']} {class_data['yr_lvl']}{class_data['sect']}"
         
         current_page.content = page_6
+        current_page.update()
+        
+        rows = db.get_session_log(class_data['c_id'], class_data['date'], class_data['sched_fin'])
+        if rows:
+            for r in rows:
+                dt_session_log.rows.append(
+                    ft.DataRow(cells=[
+                            ft.DataCell(ft.Text(str(r['time']))),
+                            ft.DataCell(ft.Text(r['student_name'])),
+                            ft.DataCell(ft.Text(r['student_id'])),
+                            ft.DataCell(ft.Text(r['status'])),
+                        ]
+                    )
+                )
+        
+        dt_session_log.update()
+        
+    def on_apply_filter():
+        f_date = convert_date(filter_date_field.value) if filter_date_field.value != "" else None
+        f_time = convert_time(filter_time_field.value) if filter_time_field.value != "" else None
+        f_sect = int(filter_sect_dropdown.content.value) if filter_sect_dropdown.content.value != 'Default' else None
+        f_subj = filter_subj_dropdown.content.value  if filter_subj_dropdown.content.value != 'Default' else None
+        
+        update_class_log(current_u_id, f_date, f_time, f_sect, f_subj)
+        current_page.update()
     
+    def clear_filters():
+        filter_date_field.value = ''
+        filter_time_field.value = ''
+        filter_sect_dropdown.content.value = 'Default'
+        filter_subj_dropdown.content.value = 'Default'
+
     
     #* PAGE 5 COMPONENTS -- New session page
     
@@ -862,21 +898,9 @@ def main(page: ft.Page):
             rows=[],
         )
     
-    def update_session_log():
-        dt_session_log.rows.clear()
-        
-        rows = db.get_session_attendance()
-        # if rows:
-        #     for r in rows:
-        #         dt_attendance_log.rows.append(
-        #             ft.DataRow(cells=[
-        #                     ft.DataCell(ft.Text(str(r['time']))),
-        #                     ft.DataCell(ft.Text(r['student_name'])),
-        #                     ft.DataCell(ft.Text(f"{r['course_id']} {r['year_level']}{r['section']}")),
-        #                     ft.DataCell(ft.Text(r['status'])),
-        #                 ]
-        #             )
-        #         )
+    def on_export_sheet():
+        pass
+    
     
     
     #* PAGE SETUP; UI/UX
@@ -1192,11 +1216,9 @@ def main(page: ft.Page):
                                 ft.IconButton(
                                         icon=ft.Icons.RESTART_ALT,
                                         on_click=lambda e: (
-                                            setattr(filter_date_field, 'value', ''),
-                                            setattr(filter_time_field, 'value', ''),
-                                            setattr(filter_sect_dropdown.content, 'value', None),
-                                            setattr(filter_subj_dropdown.content, 'value', None),
-                                        )
+                                                clear_filters(),
+                                                update_class_log(current_u_id)
+                                            )
                                     )
                             ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
                             ft.Row([
@@ -1380,7 +1402,7 @@ def main(page: ft.Page):
                                         shape=ft.RoundedRectangleBorder(radius=10),
                                         bgcolor=ft.Colors.SURFACE_CONTAINER_HIGH
                                     ),
-                                    # on_click=
+                                    on_click=lambda e: on_export_sheet()
                                 ),
                         ], margin=20, spacing=15
                     )
@@ -1477,17 +1499,23 @@ def main(page: ft.Page):
         elif i == 2:
             kill_dashb_time_thread()
             kill_scanner_thread()
-            update_attendance_log()
             
             current_page.content = page_3
+            current_page.update()
+            update_attendance_log()
+            dt_attendance_log.update()
             
         elif i == 3:
             kill_dashb_time_thread()
             kill_scanner_thread()
             update_sect_options()
-            update_class_log()
             
             current_page.content = page_4
+            clear_filters()
+            current_page.update()
+            
+            update_class_log(current_u_id)
+            dt_class_log.update()
     
     # For navigation
     navbar = ft.NavigationBar(destinations=[
