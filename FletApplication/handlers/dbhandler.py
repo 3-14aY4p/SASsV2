@@ -40,7 +40,7 @@ def get_connection():
             host="localhost",
             user="Admin-110",
             password="attendance",
-            database="db_SASs",
+            database="db_smartattendance",
         )
 
         if conn.is_connected():
@@ -539,19 +539,111 @@ def get_session_attendance():
     finally: 
         conn.close()
 
-# TODO: retrieve data regarding students performance (you can shorten this into 1-2 functions)
-def get_all_students_in_class():
-    pass
+#* ADDED: get all students in a class and their attendance status 
 
-def get_present_students_in_class():
-    pass
+def get_all_students_in_class(class_id: int):
+    conn = get_connection()
+    if not conn:
+        return None
+    
+    try:
+        curs = conn.cursor()
 
-def get_late_students_in_class():
-    pass
+        curs.execute("""
+                SELECT s.student_id,
+                    CONCAT_WS(' ', s.first_name, s.middle_name, s.last_name) AS student_name
+                FROM enrollment e
+                INNER JOIN student s ON e.student_id = s.student_id
+                INNER JOIN class c ON e.block_id = c.block_id
+                WHERE c.class_id = %s
+                ORDER BY s.last_name ASC
+            """,
+            (class_id,)
+        )
+        value = curs.fetchall()
 
-def get_absent_students_in_class():
-    pass
+        if not value:
+            return None
+        
+        return value
 
+    except mysql.connector.Error as e:
+        print(f"ERR: {e}")
+        return None
+
+    finally: 
+        conn.close()
+
+# combined present, late, and absent students
+def get_students_status(class_id: int, session_date: date, status: str):
+    conn = get_connection()
+    if not conn:
+        return None
+    
+    try:
+        curs = conn.cursor()
+
+        if status == 'on time':
+            curs.execute("""
+                    SELECT s.student_id,
+                        CONCAT_WS(' ', s.first_name, s.middle_name, s.last_name) AS student_name
+                    FROM attendance a
+                    INNER JOIN student s ON a.student_id = s.student_id
+                    WHERE a.class_id = %s
+                        AND a.date = %s
+                        AND a.status = 'on time'
+                    ORDER BY s.last_name ASC
+                """,
+                (class_id, session_date)
+            )
+
+        elif status == 'late':
+            # 
+            curs.execute("""
+                    SELECT s.student_id,
+                        CONCAT_WS(' ', s.first_name, s.middle_name, s.last_name) AS student_name
+                    FROM attendance a
+                    INNER JOIN student s ON a.student_id = s.student_id
+                    WHERE a.class_id = %s
+                        AND a.date = %s
+                        AND a.status = 'late'
+                    ORDER BY s.last_name ASC
+                """,
+                (class_id, session_date)
+            )
+        else:
+            # logic here is to get all students that doesn't have an attendance record
+            curs.execute("""
+                    SELECT s.student_id,
+                        CONCAT_WS(' ', s.first_name, s.middle_name, s.last_name) AS student_name
+                    FROM enrollment e
+                    INNER JOIN student s ON e.student_id = s.student_id
+                    INNER JOIN class c ON e.block_id = c.block_id
+                    WHERE c.class_id = %s
+                        AND s.student_id NOT IN (
+                            SELECT student_id FROM attendance
+                            WHERE class_id = %s
+                                AND date = %s
+                                AND status IN ('on time', 'late')
+                        )
+                    ORDER BY s.last_name ASC
+                """,
+                (class_id, class_id, session_date)
+            )
+
+        value = curs.fetchall()
+
+        if not value:
+            return None
+        
+        return value
+
+    except mysql.connector.Error as e:
+        print(f"ERR: {e}")
+        return None
+
+    finally: 
+        conn.close() 
 
 #* FILE EXPORT
 
