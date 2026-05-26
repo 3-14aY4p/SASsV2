@@ -497,7 +497,7 @@ def get_attendance_log(class_id: int = None, session_end: time = None):
 
 # get list of all classes
 def get_class_log(instructor_id: str, session_date: date = None, session_start: time = None,
-                  class_id: int = None, subject_id: str = None):
+                  block_id: int = None, subject_id: str = None):
     conn = get_connection()
     if not conn:
         return None
@@ -515,9 +515,9 @@ def get_class_log(instructor_id: str, session_date: date = None, session_start: 
         if session_start:
             filters.append("a.session_start = %s")
             params.append(str(session_start))
-        if class_id:
-            filters.append("c.class_id = %s")
-            params.append((class_id))
+        if block_id:
+            filters.append("c.block_id = %s")
+            params.append((block_id))
         if subject_id:
             filters.append("c.subject_id = %s")
             params.append(subject_id)
@@ -534,7 +534,7 @@ def get_class_log(instructor_id: str, session_date: date = None, session_start: 
                 INNER JOIN subject s ON c.subject_id = s.subject_id
                 INNER JOIN block b ON c.block_id = b.block_id
                 WHERE {where}
-                ORDER BY a.date DESC, a.session_start ASC
+                ORDER BY a.date DESC, a.session_start DESC
             """,
             params
         )
@@ -571,8 +571,8 @@ def get_class_log(instructor_id: str, session_date: date = None, session_start: 
     finally: 
         conn.close()
 
-# TODO: get specific session attendance (prepare for export)
-def get_session_attendance():
+# get specific session attendance (prepare for export)
+def get_session_log(class_id: int, session_date: date, session_end: time):
     conn = get_connection()
     if not conn:
         return None
@@ -581,16 +581,28 @@ def get_session_attendance():
         curs = conn.cursor()
 
         curs.execute("""
-
+                SELECT a.time, a.status,
+                    CONCAT_WS(' ', s.last_name, s.first_name, s.middle_name) AS student_name,
+                    s.student_id
+                FROM attendance a
+                INNER JOIN class c ON a.class_id = c.class_id
+                INNER JOIN student s ON a.student_id = s.student_id
+                WHERE a.class_id = %s
+                    AND a.date = %s
+                    AND a.session_end = %s
+                ORDER BY s.last_name ASC, s.first_name ASC
             """,
-            ()
+            (class_id, session_date, session_end)
         )
-        value = curs.fetchall()
-
-        if not value:
-            return None
+        logs = curs.fetchall()
         
-        return value
+        if not logs:
+            return None
+
+        cols = [column[0] for column in curs.description]
+        rows = [dict(zip(cols, row)) for row in logs]
+
+        return rows
 
     except mysql.connector.Error as e:
         print(f"ERR: {e}")
