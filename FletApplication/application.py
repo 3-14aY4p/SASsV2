@@ -563,17 +563,13 @@ def main(page: ft.Page):
     
     def update_class_log(instructor_id: str, session_date: date = None, session_start: time = None,
                   block_id: int = None, subject_id: str = None):
-    def update_class_log(instructor_id: str, session_date: date = None, session_start: time = None,
-                  block_id: int = None, subject_id: str = None):
         dt_class_log.rows.clear()
         
-        rows = db.get_class_log(instructor_id, session_date, session_start, block_id, subject_id)
         rows = db.get_class_log(instructor_id, session_date, session_start, block_id, subject_id)
         if rows:
             for r in rows:
                 expand_btn = ft.IconButton(
                     icon=ft.Icons.ARROW_OUTWARD,
-                    on_click=lambda e, d=r: expand_class_item(d)
                     on_click=lambda e, d=r: expand_class_item(d)
                 )
                 dt_class_log.rows.append(
@@ -584,18 +580,6 @@ def main(page: ft.Page):
                             ft.DataCell(ft.Text(r['subj'], size=12)),
                             ft.DataCell(ft.Text(f"{r['crs_id']} {r['yr_lvl']}{r['sect']}", size=12)),
                             ft.DataCell(expand_btn)
-                        ]
-                    )
-                )
-        else:
-            dt_class_log.rows.append(
-                    ft.DataRow(cells=[
-                            ft.DataCell(ft.Text('----------', size=12)),
-                            ft.DataCell(ft.Text('------ ----- ------', size=12)),
-                            ft.DataCell(ft.Text('------', size=12)),
-                            ft.DataCell(ft.Text('----', size=12)),
-                            ft.DataCell(ft.Text('----', size=12)),
-                            ft.DataCell(ft.Text('     ', size=12))
                         ]
                     )
                 )
@@ -731,7 +715,7 @@ def main(page: ft.Page):
             )
         )
     nsession_timeslot_select = ft.Container(content=nsession_timeslot_dropdown)
-    
+
     def update_sect_options():
         section_options.clear()
         
@@ -1241,9 +1225,6 @@ def main(page: ft.Page):
                                                 clear_filters(),
                                                 update_class_log(current_u_id)
                                             )
-                                                clear_filters(),
-                                                update_class_log(current_u_id)
-                                            )
                                     )
                             ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
                             ft.Row([
@@ -1428,7 +1409,6 @@ def main(page: ft.Page):
                                         bgcolor=ft.Colors.SURFACE_CONTAINER_HIGH
                                     ),
                                     on_click=lambda e: on_export_sheet()
-                                    on_click=lambda e: on_export_sheet()
                                 ),
                         ], margin=20, spacing=15
                     )
@@ -1530,9 +1510,6 @@ def main(page: ft.Page):
             current_page.update()
             update_attendance_log()
             dt_attendance_log.update()
-            current_page.update()
-            update_attendance_log()
-            dt_attendance_log.update()
             
         elif i == 3:
             kill_dashb_time_thread()
@@ -1540,11 +1517,6 @@ def main(page: ft.Page):
             update_sect_options()
             
             current_page.content = page_4
-            clear_filters()
-            current_page.update()
-            
-            update_class_log(current_u_id)
-            dt_class_log.update()
             clear_filters()
             current_page.update()
             
