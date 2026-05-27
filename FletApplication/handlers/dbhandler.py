@@ -750,9 +750,13 @@ def get_students_of_status(class_id: int, session_date: date = datetime.today().
     finally: 
         conn.close() 
 
+<<<<<<< Updated upstream
 # full analytics for a specific session — used for the expanded view and export
 def get_session_analytics(class_id: int, session_date: date, session_start: time, session_end: time,
                           subject_id: str = None, block_id: int = None):
+=======
+def get_general_analytics(subject_id: str = None, block_id: int = None):
+>>>>>>> Stashed changes
     conn = get_connection()
     if not conn:
         return None
@@ -761,11 +765,16 @@ def get_session_analytics(class_id: int, session_date: date, session_start: time
         curs = conn.cursor()
 
         filters = []
+<<<<<<< Updated upstream
         params = []
 
         if class_id:
             filters.append("c.class_id = %s")
             params.append(class_id)
+=======
+        params  = []
+
+>>>>>>> Stashed changes
         if subject_id:
             filters.append("c.subject_id = %s")
             params.append(subject_id)
@@ -773,6 +782,7 @@ def get_session_analytics(class_id: int, session_date: date, session_start: time
             filters.append("c.block_id = %s")
             params.append(block_id)
 
+<<<<<<< Updated upstream
         scope_where = ("AND " + " AND ".join(filters)) if filters else ""
 
         # session filters — when (all optional)
@@ -798,12 +808,25 @@ def get_session_analytics(class_id: int, session_date: date, session_start: time
                 LEFT JOIN attendance a ON a.class_id = c.class_id
                 WHERE 1=1
                     {scope_where}
+=======
+        if not filters:
+            return None
+
+        scope_where = "AND " + " AND ".join(filters)
+
+        curs.execute(f"""
+                SELECT COUNT(DISTINCT e.student_id)
+                FROM enrollment e
+                INNER JOIN class c ON e.block_id = c.block_id
+                WHERE 1=1 {scope_where}
+>>>>>>> Stashed changes
             """,
             params
         )
         total_row = curs.fetchone()
         total = total_row[0] if total_row else 0
 
+<<<<<<< Updated upstream
         # 
         curs.execute(f"""
                 SELECT a.status, COUNT(*) as count
@@ -815,6 +838,16 @@ def get_session_analytics(class_id: int, session_date: date, session_start: time
                 GROUP BY a.status
             """,
             session_params + params
+=======
+        curs.execute(f"""
+                SELECT a.status, COUNT(*) AS count
+                FROM tbl_attendance a
+                INNER JOIN class c ON a.class_id = c.class_id
+                WHERE 1=1 {scope_where}
+                GROUP BY a.status
+            """,
+            params
+>>>>>>> Stashed changes
         )
         status_rows = curs.fetchall()
 
@@ -826,6 +859,7 @@ def get_session_analytics(class_id: int, session_date: date, session_start: time
         absent = max(0, total - counts['on time'] - counts['late'])
 
         ontime_pct = round(counts['on time'] / total * 100, 1) if total else 0.0
+<<<<<<< Updated upstream
         late_pct = round(counts['late'] / total * 100, 1) if total else 0.0
         absent_pct = round(absent / total * 100, 1) if total else 0.0
 
@@ -837,6 +871,93 @@ def get_session_analytics(class_id: int, session_date: date, session_start: time
             'on_time_pct': ontime_pct,
             'late_pct': late_pct,
             'absent_pct': absent_pct,
+=======
+        late_pct   = round(counts['late']    / total * 100, 1) if total else 0.0
+        absent_pct = round(absent            / total * 100, 1) if total else 0.0
+
+        return {
+            'total':       total,
+            'on_time':     counts['on time'],
+            'late':        counts['late'],
+            'absent':      absent,
+            'on_time_pct': ontime_pct,
+            'late_pct':    late_pct,
+            'absent_pct':  absent_pct,
+        }
+
+    except mysql.connector.Error as e:
+        print(f"ERR [get_general_analytics]: {e}")
+        return None
+
+    finally:
+        conn.close()
+
+
+# analytics for one specific session — scoped to a class and date, start/end are optional
+def get_session_analytics(class_id: int, session_date: date,
+                          session_start: time = None, session_end: time = None):
+    conn = get_connection()
+    if not conn:
+        return None
+
+    try:
+        curs = conn.cursor()
+
+        # total = how many students are enrolled in this class
+        curs.execute("""
+                SELECT COUNT(DISTINCT e.student_id)
+                FROM enrollment e
+                INNER JOIN class c ON e.block_id = c.block_id
+                WHERE c.class_id = %s
+            """,
+            (class_id,)
+        )
+        total_row = curs.fetchone()
+        total = total_row[0] if total_row else 0
+
+        session_filters = ["a.class_id = %s", "a.date = %s"]
+        session_params  = [class_id, session_date]
+
+        if session_start:        
+            session_filters.append("a.session_start = %s")
+            session_params.append(session_start)
+        if session_end:
+            session_filters.append("a.session_end = %s")
+            session_params.append(session_end)
+
+        where = " AND ".join(session_filters)
+
+        # count attendance records grouped by status for this specific session
+        curs.execute(f"""
+                SELECT a.status, COUNT(*) AS count
+                FROM tbl_attendance a
+                WHERE {where}
+                GROUP BY a.status
+            """,
+            session_params
+        )
+        status_rows = curs.fetchall()
+
+        counts = {'on time': 0, 'late': 0}
+        for status, count in (status_rows or []):
+            if status in counts:
+                counts[status] = count
+
+        absent = max(0, total - counts['on time'] - counts['late'])
+
+        ontime_pct = round(counts['on time'] / total * 100, 1) if total else 0.0
+        late_pct   = round(counts['late']    / total * 100, 1) if total else 0.0
+        absent_pct = round(absent            / total * 100, 1) if total else 0.0
+
+        return {
+            'total':       total,
+            'on_time':     counts['on time'],
+            'late':        counts['late'],
+            'absent':      absent,
+            'on_time_pct': ontime_pct,
+            'late_pct':    late_pct,
+            'absent_pct':  absent_pct,
+>>>>>>> Stashed changes
         }
 
     except mysql.connector.Error as e:
