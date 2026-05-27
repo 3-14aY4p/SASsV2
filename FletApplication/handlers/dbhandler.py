@@ -53,6 +53,7 @@ def get_connection():
 
 
 
+
 #* QUERIES FOR RECORD EXISTENCE VALIDATION
 
 # for instructors login
@@ -206,6 +207,7 @@ def record_attendance(student_id: str, class_id: int, session_type: str, session
  
     finally:
         conn.close()
+
 
 
 
@@ -467,7 +469,7 @@ def get_attendance_log(class_id: int = None, session_end: time = None):
 
         curs.execute(f"""
                 SELECT a.time, a.status,
-                    CONCAT_WS(' ', s.first_name, s.middle_name, s.last_name) AS student_name,
+                    CONCAT_WS(' ', CONCAT_WS(', ', s.last_name, s.first_name), s.middle_name) AS student_name,
                     s.student_id,
                     b.course_id, b.year_level, b.section
                 FROM attendance a
@@ -577,13 +579,14 @@ def get_session_log(class_id: int, session_date: date, session_end: time):
     conn = get_connection()
     if not conn:
         return None
-    
+
     try:
         curs = conn.cursor()
 
+        # THIS GETS THE STUDENTS THAT IS PRESENT / ONTIME / LATE
         curs.execute("""
                 SELECT a.time, a.status,
-                    CONCAT_WS(' ', s.last_name, s.first_name, s.middle_name) AS student_name,
+                    CONCAT_WS(' ', CONCAT_WS(', ', s.last_name, s.first_name), s.middle_name) AS student_name,
                     s.student_id
                 FROM attendance a
                 INNER JOIN class c ON a.class_id = c.class_id
@@ -593,25 +596,53 @@ def get_session_log(class_id: int, session_date: date, session_end: time):
                     AND a.session_end = %s
                 ORDER BY s.last_name ASC, s.first_name ASC
             """,
-            (class_id, session_date, session_end)
-        )
-        logs = curs.fetchall()
-        
-        if not logs:
-            return None
-
+                     (class_id, session_date, session_end)
+                     )
+        attended = curs.fetchall()
         cols = [column[0] for column in curs.description]
-        rows = [dict(zip(cols, row)) for row in logs]
+        rows = [dict(zip(cols, row)) for row in attended]
 
-        return rows
+        # THIS GETS THE ABSENT (enrolled but no attendance record)
+        curs.execute("""
+                SELECT s.student_id,
+                    CONCAT_WS(' ', CONCAT_WS(', ', s.last_name, s.first_name), s.middle_name) AS student_name
+                FROM enrollment e
+                INNER JOIN student s ON e.student_id = s.student_id
+                INNER JOIN class c ON e.block_id = c.block_id
+                WHERE c.class_id = %s
+                    AND e.student_id NOT IN (
+                        SELECT student_id FROM attendance
+                        WHERE class_id = %s
+                            AND date = %s
+                            AND session_end = %s
+                    )
+                ORDER BY s.last_name ASC, s.first_name ASC
+            """,
+                     (class_id, class_id, session_date, session_end)
+                     )
+        absent = curs.fetchall()
+        for row in absent:
+            rows.append({
+                'time': "--------",
+                'status': 'absent',
+                'student_name': row[1],
+                'student_id': row[0],
+            })
+        rows = sorted(rows, key=lambda d: d['student_name'])
+
+        return rows if rows else None
 
     except mysql.connector.Error as e:
         print(f"ERR: {e}")
         return None
 
-    finally: 
+    finally:
         conn.close()
 
+
+
+
+#* FOR ANALYTICS 
 
 # get all students in a class and their attendance status 
 def get_all_students_in_class(class_id: int):
@@ -624,7 +655,7 @@ def get_all_students_in_class(class_id: int):
 
         curs.execute("""
                 SELECT s.student_id,
-                    CONCAT_WS(' ', s.first_name, s.middle_name, s.last_name) AS student_name
+                    CONCAT_WS(' ', CONCAT_WS(', ', s.last_name, s.first_name), s.middle_name) AS student_name
                 FROM enrollment e
                 INNER JOIN student s ON e.student_id = s.student_id
                 INNER JOIN class c ON e.block_id = c.block_id
@@ -662,7 +693,7 @@ def get_students_of_status(class_id: int, session_date: date = datetime.today().
         if status:
             curs.execute("""
                     SELECT s.student_id,
-                        CONCAT_WS(' ', s.first_name, s.middle_name, s.last_name) AS student_name
+                        CONCAT_WS(' ', CONCAT_WS(', ', s.last_name, s.first_name), s.middle_name) AS student_name
                     FROM attendance a
                     INNER JOIN student s ON a.student_id = s.student_id
                     WHERE a.class_id = %s
@@ -676,7 +707,7 @@ def get_students_of_status(class_id: int, session_date: date = datetime.today().
             # logic here is to get all students that doesn't have an attendance record (or I guess, absent?)
             curs.execute("""
                     SELECT s.student_id,
-                        CONCAT_WS(' ', s.first_name, s.middle_name, s.last_name) AS student_name
+                        CONCAT_WS(' ', CONCAT_WS(', ', s.last_name, s.first_name), s.middle_name) AS student_name
                     FROM enrollment e
                     INNER JOIN student s ON e.student_id = s.student_id
                     INNER JOIN class c ON e.block_id = c.block_id
@@ -692,12 +723,16 @@ def get_students_of_status(class_id: int, session_date: date = datetime.today().
                 (class_id, class_id, session_date)
             )
 
-        value = curs.fetchall()
-
-        if not value:
-            return None
+        recs = curs.fetchall()
         
-        return value
+        if not recs:
+            return None
+
+        cols = [column[0] for column in curs.description]
+        rows = [dict(zip(cols, row)) for row in recs]
+
+        return rows
+
 
     except mysql.connector.Error as e:
         print(f"ERR: {e}")
@@ -706,11 +741,9 @@ def get_students_of_status(class_id: int, session_date: date = datetime.today().
     finally: 
         conn.close() 
 
-
-#* FILE EXPORT
-
-# export attendance into .xlsx (excel sheet)
-def export_sheet(class_id: int, session_date: date, session_start: time, session_end: time):
+# full analytics for a specific session — used for the expanded view and export
+def get_session_analytics(class_id: int, session_date: date, session_end: time,
+                          subject_id: str = None, block_id: int = None):
     conn = get_connection()
     if not conn:
         return None
@@ -718,9 +751,94 @@ def export_sheet(class_id: int, session_date: date, session_start: time, session
     try:
         curs = conn.cursor()
 
+        # build optional filters
+        filters = ["c.class_id = %s"]
+        params  = [class_id]
+
+        if subject_id and block_id:
+            filters.append("c.subject_id = %s AND c.block_id = %s")
+            params += [subject_id, block_id]
+        elif subject_id:
+            filters.append("c.subject_id = %s")
+            params.append(subject_id)
+        elif block_id:
+            filters.append("c.block_id = %s")
+            params.append(block_id)
+
+        where = " AND ".join(filters)
+
+        # get total enrolled for this class
+        curs.execute(f"""
+                SELECT COUNT(*)
+                FROM enrollment e
+                INNER JOIN class c ON e.block_id = c.block_id
+                WHERE {where}
+            """,
+            params
+        )
+        total_row = curs.fetchone()
+        total = total_row[0] if total_row else 0
+
+        # get per-status counts for this specific session
+        curs.execute(f"""
+                SELECT a.status, COUNT(*) as count
+                FROM attendance a
+                INNER JOIN class c ON a.class_id = c.class_id
+                WHERE {where}
+                    AND a.date = %s
+                    AND a.session_end = %s
+                GROUP BY a.status
+            """,
+            params + [session_date, session_end]
+        )
+        status_rows = curs.fetchall()
+
+        counts = {'on time': 0, 'late': 0, 'absent': 0}
+        for status, count in (status_rows or []):
+            if status in counts:
+                counts[status] = count
+
+        counts['absent'] = total - counts['on time'] - counts['late']
+
+        ontime_pct = round(counts['on time'] / total * 100, 1) if total else 0.0
+        late_pct   = round(counts['late']    / total * 100, 1) if total else 0.0
+        absent_pct = round(counts['absent']  / total * 100, 1) if total else 0.0
+
+        return {
+            'total':       total,
+            'on_time':     counts['on time'],
+            'late':        counts['late'],
+            'absent':      counts['absent'],
+            'on_time_pct': ontime_pct,
+            'late_pct':    late_pct,
+            'absent_pct':  absent_pct,
+        }
+
+    except mysql.connector.Error as e:
+        print(f"ERR: {e}")
+        return None
+
+    finally: 
+        conn.close()
+
+
+
+
+#* FILE EXPORT
+
+# export attendance into .xlsx (Excel sheet) including absent students
+def export_sheet(class_id: int, session_date: date, session_start: time, session_end: time):
+    conn = get_connection()
+    if not conn:
+        return None
+
+    try:
+        curs = conn.cursor()
+
+        # THIS GETS THE STUDENTS THAT IS PRESENT / ONTIME / LATE
         curs.execute("""
             SELECT s.student_id,
-                CONCAT_WS(' ', s.first_name, s.middle_name, s.last_name) AS student_name,
+                CONCAT_WS(' ', CONCAT_WS(', ', s.last_name, s.first_name), s.middle_name) AS student_name,
                 a.time, a.status
             FROM attendance a
             INNER JOIN class c ON a.class_id = c.class_id
@@ -733,31 +851,60 @@ def export_sheet(class_id: int, session_date: date, session_start: time, session
             """,
             (class_id, session_date, session_start, session_end)
         )
-        rows = curs.fetchall()
-        
-        if not rows:
+        attended = curs.fetchall()
+
+        # THIS GETS THE ABSENT (enrolled but no attendance record)
+        curs.execute("""
+            SELECT s.student_id,
+                CONCAT_WS(' ', CONCAT_WS(', ', s.last_name, s.first_name), s.middle_name) AS student_name
+            FROM enrollment e
+            INNER JOIN student s ON e.student_id = s.student_id
+            INNER JOIN class c ON e.block_id = c.block_id
+            WHERE c.class_id = %s
+                AND e.student_id NOT IN (
+                    SELECT student_id FROM attendance
+                    WHERE class_id = %s
+                        AND date = %s
+                        AND session_start = %s
+                        AND session_end = %s
+                )
+            ORDER BY s.last_name ASC, s.first_name ASC
+            """,
+            (class_id, class_id, session_date, session_start, session_end)
+        )
+        absent = curs.fetchall()
+
+        if not attended and not absent:
             return None
-        
-        file_path = f"attendance_{session_date}_{session_start}-{session_end}.xlsx"
-        
+
         sheet_data = []
-        for s_id, name, time, status in rows:
-            sd = {
-                "ID NO.": s_id, 
-                "NAME": name, 
-                "TIMESTAMP": _td_to_time(time).strftime('%I:%M %p'), 
+        for s_id, name, time, status in attended:
+            sheet_data.append({
+                "ID NO.": s_id,
+                "NAME": name,
+                "TIMESTAMP": _td_to_time(time).strftime('%I:%M %p'),
                 "STATUS": status.capitalize()
-            }
-            sheet_data.append(sd)
-            
-        df = pd.DataFrame(sheet_data)
-        df.to_excel(f"attendance_{session_date}_{session_start}-{session_end}.xlsx", sheet_name=f"{session_date}")
+            })
+        for s_id, name in absent:
+            sheet_data.append({
+                "ID NO.": s_id,
+                "NAME": name,
+                "TIMESTAMP": "---",
+                "STATUS": "Absent"
+            })
+        sheet_data = sorted(sheet_data, key=lambda d: d['NAME'])
+
+        file_path = f"attendance_{session_date}_{str(session_start).replace(':', '-')}_{str(session_end).replace(':', '-')}.xlsx"
         
+        df = pd.DataFrame(sheet_data)
+        df.index = df.index + 1
+        df.to_excel(file_path, sheet_name=f"{session_date}")
+
         return file_path
 
     except mysql.connector.Error as e:
         print(f"ERR: {e}")
         return None
 
-    finally: 
+    finally:
         conn.close()

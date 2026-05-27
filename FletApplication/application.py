@@ -139,6 +139,10 @@ def main(page: ft.Page):
     
     #* PAGE 1 COMPONENTS
     
+    section_options = []
+    subject_options = []
+    timeslot_options = []
+    
     camera_active_status = False
     camera_active = False
     session_active = False
@@ -181,6 +185,30 @@ def main(page: ft.Page):
                 weight=ft.FontWeight.BOLD,
                 size=24,
                 color=ft.Colors.ON_SURFACE_VARIANT
+            )
+        )
+
+    # TODO: Add function for updating these
+    metrics_sect_dropdown = ft.Container(
+            height=50, width=240,
+            content=ft.Dropdown(
+                expand=True,
+                bgcolor=ft.Colors.SURFACE_CONTAINER_HIGH,
+                border_color=ft.Colors.SURFACE_BRIGHT,
+                label=ft.Text("Section"),
+                options=section_options,
+                # on_select=lambda e: update_subj_options(int(e.data))
+            )
+        )
+    metrics_subj_dropdown = ft.Container(
+            height=50, width=200,
+            content=ft.Dropdown(
+                expand=True,
+                bgcolor=ft.Colors.SURFACE_CONTAINER_HIGH,
+                border_color=ft.Colors.SURFACE_BRIGHT,
+                label=ft.Text("Subject"),
+                options=subject_options,
+                # on_select=lambda e: update_subj_options(int(e.data))
             )
         )
 
@@ -280,26 +308,9 @@ def main(page: ft.Page):
                             ft.Text(value="+ You have no schedule lined up for today.")
                         )
                 
-    # TODO: FInish this for later
+    # TODO: Finish this for later; values should depend on the selected filter for section or subject
     def update_metrics_card():
-        today = datetime.today().date()
-        
-        if all(session_details.values()):
-            all_students = db.get_all_students_in_class(session_details['c_id'])
-            on_time_students = db.get_students_of_status(session_details['c_id'], today, 'on time')
-            late_students = db.get_students_of_status(session_details['c_id'], today, 'late')
-            absent_students = db.get_students_of_status(session_details['c_id'], today,)
-            
-            metrics_cards_ui[0].value = f"{len(all_students)}"
-            
-            if on_time_students:
-                metrics_cards_ui[1].value = f"{len(on_time_students)} out of {len(all_students)}"
-                
-            if late_students:
-                metrics_cards_ui[2].value = f"{len(late_students)} out of {len(all_students)}"
-            
-            if absent_students:
-                metrics_cards_ui[3].value = f"{len(absent_students)} out of {len(all_students)}"
+        pass
                 
     
     #* PAGE 2 COMPONENTS
@@ -535,10 +546,6 @@ def main(page: ft.Page):
     
     #* PAGE 4 COMPONENTS
     
-    section_options = []
-    subject_options = []
-    timeslot_options = []
-    
     filter_date_field = ft.TextField(
             border_color=ft.Colors.SURFACE_BRIGHT,
             expand=1, height=50, border_radius=10,
@@ -630,11 +637,21 @@ def main(page: ft.Page):
         
         dt_session_log.rows.clear()
         
+        analytics = db.get_session_analytics(class_data['c_id'], class_data['date'], class_data['sched_fin'])
+        
+        ot_pct = f"{analytics['on_time_pct']}%" if analytics['on_time_pct'] != 0.0 else "0.00%"
+        lt_pct = f"{analytics['late_pct']}%" if analytics['late_pct'] != 0.0 else "0.00%"
+        ab_pct = f"{analytics['absent_pct']}%" if analytics['absent_pct'] != 0.0 else "0.00%"
+        
         selected_session_ui[0].value = f"+ {class_data['date']}"
         selected_session_ui[1].value = f"+ {class_data['time_label']}"
         selected_session_ui[2].value = f"+ {class_data['type']} class"
         selected_session_ui[3].value = f"{class_data['subj']}"
         selected_session_ui[4].value = f"{class_data['crs_id']} {class_data['yr_lvl']}{class_data['sect']}"
+        
+        selected_session_ui[5].value = f"{analytics['on_time']} / {analytics['total']} ( {ot_pct} )"
+        selected_session_ui[6].value = f"{analytics['late']} / {analytics['total']} ( {lt_pct} )"
+        selected_session_ui[7].value = f"{analytics['absent']} / {analytics['total']} ( {ab_pct} )"
         
         current_page.content = page_6
         current_page.update()
@@ -913,6 +930,27 @@ def main(page: ft.Page):
                     color=ft.Colors.ON_SURFACE_VARIANT
                 )
             ),
+        ft.Text(value="---",        # ON TIME
+                style=ft.TextStyle(
+                    weight=ft.FontWeight.NORMAL,
+                    size=15,
+                    color=ft.Colors.ON_SURFACE_VARIANT
+                )
+            ),
+        ft.Text(value="---",        # LATE
+                style=ft.TextStyle(
+                    weight=ft.FontWeight.NORMAL,
+                    size=15,
+                    color=ft.Colors.ON_SURFACE_VARIANT
+                )
+            ),
+        ft.Text(value="---",        # ABSENT
+                style=ft.TextStyle(
+                    weight=ft.FontWeight.NORMAL,
+                    size=15,
+                    color=ft.Colors.ON_SURFACE_VARIANT
+                )
+            ),
         ]
     
     dt_session_log = ft.DataTable(
@@ -1062,7 +1100,7 @@ def main(page: ft.Page):
                             style = ft.ButtonStyle(
                                     bgcolor = ft.Colors.SURFACE_CONTAINER_HIGHEST,
                                     elevation=30,
-                            ),
+                                ),
                             on_click=lambda e: logout()
                         )
                     ], spacing=20, alignment=ft.MainAxisAlignment.SPACE_BETWEEN
@@ -1071,76 +1109,68 @@ def main(page: ft.Page):
                 ft.Row([
                         date_today,
                         time_today,
-                    ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN
-                ),
+                        ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN
+                    ),
                 ft.Row([
-                    ft.Container(
-                            align=ft.Alignment.TOP_CENTER,
-                            # bgcolor=ft.Colors.SURFACE_CONTAINER_LOW,
-                            width=240, height= 200,
-                            # border_radius=5,
-                            content= ft.Column(
-                                        expand=True, # margin=10,
-                                        controls=[
-                                            filter_sect_dropdown,   # TODO: Change to respective filters
-                                            filter_subj_dropdown
-                                        ]
-                                    ),
-                                ),
+                        metrics_sect_dropdown,
+                        metrics_subj_dropdown,
+                        ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN
+                    ), 
+                ft.Row([
                     ft.Container(   # TODO: Update metrics cards aesthetics
-                            align=ft.Alignment.TOP_CENTER,
-                            bgcolor=ft.Colors.SURFACE_CONTAINER,
-                            width=280, height= 200,
-                            border_radius=20,
-                            content= ft.Column(
-                                        expand=True, margin=20,
-                                        controls=[
-                                            ft.Text("TOTAL STUDENTS", size=18),
-                                            metrics_cards_ui[0],
-                                        ]
-                                    ),
+                        align=ft.Alignment.TOP_CENTER,
+                        bgcolor=ft.Colors.SURFACE_CONTAINER,
+                        width=280, height= 200,
+                        border_radius=20,
+                        content= ft.Column(
+                                    expand=True, margin=20,
+                                    controls=[
+                                        ft.Text("TOTAL STUDENTS", size=18),
+                                        metrics_cards_ui[0],
+                                    ]
                                 ),
+                            ),
                     ft.Container(
-                            align=ft.Alignment.TOP_CENTER,
-                            bgcolor=ft.Colors.SURFACE_CONTAINER,
-                            width=280, height= 200,
-                            border_radius=20,
-                            content=ft.Column(
-                                        expand=True, margin=20,
-                                        controls=[
-                                            ft.Text("TOTAL ON TIME", size=18),
-                                            metrics_cards_ui[1],
-                                        ]
-                                    ),
+                        align=ft.Alignment.TOP_CENTER,
+                        bgcolor=ft.Colors.SURFACE_CONTAINER,
+                        width=280, height= 200,
+                        border_radius=20,
+                        content=ft.Column(
+                                    expand=True, margin=20,
+                                    controls=[
+                                        ft.Text("TOTAL ON TIME", size=18),
+                                        metrics_cards_ui[1],
+                                    ]
                                 ),
+                            ),
                     ft.Container(
-                            align=ft.Alignment.TOP_CENTER,
-                            bgcolor=ft.Colors.SURFACE_CONTAINER,
-                            width=280, height= 200,
-                            border_radius=20,
-                            content=ft.Column(
-                                        expand=True, margin=20,
-                                        controls=[
-                                            ft.Text("TOTAL LATE", size=18),
-                                            metrics_cards_ui[2],
-                                        ]
-                                    ),
+                        align=ft.Alignment.TOP_CENTER,
+                        bgcolor=ft.Colors.SURFACE_CONTAINER,
+                        width=280, height= 200,
+                        border_radius=20,
+                        content=ft.Column(
+                                    expand=True, margin=20,
+                                    controls=[
+                                        ft.Text("TOTAL LATE", size=18),
+                                        metrics_cards_ui[2],
+                                    ]
                                 ),
+                            ),
                     ft.Container(
-                            align=ft.Alignment.TOP_CENTER,
-                            bgcolor=ft.Colors.SURFACE_CONTAINER,
-                            width=280, height= 200,
-                            border_radius=20,
-                            content=ft.Column(
-                                        expand=True, margin=20,
-                                        controls=[
-                                            ft.Text("TOTAL ABSENT", size=18),
-                                            metrics_cards_ui[3],
-                                        ]
-                                    ),
+                        align=ft.Alignment.TOP_CENTER,
+                        bgcolor=ft.Colors.SURFACE_CONTAINER,
+                        width=280, height= 200,
+                        border_radius=20,
+                        content=ft.Column(
+                                    expand=True, margin=20,
+                                    controls=[
+                                        ft.Text("TOTAL ABSENT", size=18),
+                                        metrics_cards_ui[3],
+                                    ]
                                 ),
-                    ], scroll=ft.ScrollMode.AUTO, spacing=20
-                ),
+                            ),
+                        ], scroll=ft.ScrollMode.AUTO, spacing=20
+                    ),
                 ft.Divider(),
                 ft.Text(value="TODAY'S SCHEDULE",
                         style=ft.TextStyle(
@@ -1379,7 +1409,7 @@ def main(page: ft.Page):
         )
     )
     
-    # Expanded previous-session page
+    # Expanded session page
     page_6 = ft.Container(
         align=ft.Alignment.TOP_CENTER,
         margin=30,
@@ -1387,7 +1417,7 @@ def main(page: ft.Page):
                 ft.Container(
                     align=ft.Alignment.TOP_CENTER,
                     bgcolor=ft.Colors.SURFACE_CONTAINER,
-                    expand=2, height=420,
+                    expand=2, height=HEIGHT,
                     border_radius=20,
                     content=ft.Column([
                             ft.Row([
@@ -1453,9 +1483,9 @@ def main(page: ft.Page):
                                                     color=ft.Colors.ON_SURFACE_VARIANT
                                                 )
                                             ),
-                                        selected_session_ui[3]
-                                        ], spacing=1
-                                    ),
+                                            selected_session_ui[3]
+                                            ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN
+                                        ),
                                 ft.Row([
                                         ft.Text(value="+ SUBJECT: ",
                                                 style=ft.TextStyle(
@@ -1465,7 +1495,44 @@ def main(page: ft.Page):
                                                 )
                                             ),
                                             selected_session_ui[4]
-                                            ], spacing=1
+                                            ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN
+                                        ),
+                                    ],
+                                ),
+                            ft.Divider(),
+                            ft.Column([
+                                ft.Row([
+                                        ft.Text(value="+ ON TIME: ",
+                                                style=ft.TextStyle(
+                                                    weight=ft.FontWeight.BOLD,
+                                                    size=16,
+                                                    color=ft.Colors.ON_SURFACE_VARIANT
+                                                )
+                                            ),
+                                            selected_session_ui[5]
+                                            ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN
+                                        ),
+                                ft.Row([
+                                        ft.Text(value="+ LATE: ",
+                                                style=ft.TextStyle(
+                                                    weight=ft.FontWeight.BOLD,
+                                                    size=16,
+                                                    color=ft.Colors.ON_SURFACE_VARIANT
+                                                )
+                                            ),
+                                            selected_session_ui[6]
+                                            ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN
+                                        ),
+                                ft.Row([
+                                        ft.Text(value="+ ABSENT: ",
+                                                style=ft.TextStyle(
+                                                    weight=ft.FontWeight.BOLD,
+                                                    size=16,
+                                                    color=ft.Colors.ON_SURFACE_VARIANT
+                                                )
+                                            ),
+                                            selected_session_ui[7]
+                                            ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN
                                         ),
                                     ],
                                 ),
