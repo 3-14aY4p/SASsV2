@@ -477,7 +477,7 @@ def get_attendance_log(class_id: int = None, session_end: time = None):
         where = " AND ".join(filters)
 
         curs.execute(f"""
-                SELECT a.time, a.status,
+                SELECT a.time, a.status, a.date,
                     CONCAT_WS(' ', CONCAT_WS(', ', s.last_name, s.first_name), s.middle_name) AS student_name,
                     s.student_id,
                     b.course_id, b.year_level, b.section

@@ -63,8 +63,9 @@ def main(page: ft.Page):
         try:
             time = datetime.strptime(time_str, format).time()
             return time
+        
         except ValueError as e:
-            alert_snackbar("ERR: Invalid format.")
+            alert_snackbar("ERR [Time]: Invalid format.")
             return None
         
     def convert_date(date_str: str) -> date | None:
@@ -72,8 +73,9 @@ def main(page: ft.Page):
         try:
             date = datetime.strptime(date_str, format).date()
             return date
+        
         except ValueError as e:
-            alert_snackbar("ERR: Invalid format.")
+            alert_snackbar("ERR [Date]: Invalid format.")
             return None
 
 
@@ -164,7 +166,7 @@ def main(page: ft.Page):
                             ),
                         )
 
-    recent_activity_column = ft.Column(controls=[], scroll=ft.ScrollMode.AUTO)
+    recent_activity_column = ft.Column(controls=[])
     day_schedule_column = ft.Column(controls=[])
 
     user_greeting = ft.Text(value=f"Welcome, {current_user}",
@@ -190,7 +192,12 @@ def main(page: ft.Page):
             )
         )
 
-    # TODO: Add function for updating these
+    metrics_details = {
+        "b_id": None,
+        "subj": None,
+    }
+
+    # TODO: Update with the functions
     metrics_sect_dropdown = ft.Container(
             height=50, width=240,
             content=ft.Dropdown(
@@ -199,7 +206,10 @@ def main(page: ft.Page):
                 border_color=ft.Colors.SURFACE_BRIGHT,
                 label=ft.Text("Section"),
                 options=section_options,
-                # on_select=lambda e: 
+                on_select=lambda e: (
+                    metrics_details.update({"b_id": e.data}),
+                    update_metrics_card(),
+                )
             )
         )
     metrics_subj_dropdown = ft.Container(
@@ -210,33 +220,36 @@ def main(page: ft.Page):
                 border_color=ft.Colors.SURFACE_BRIGHT,
                 label=ft.Text("Subject"),
                 options=subject_options,
-                # on_select=lambda e: 
+                on_select=lambda e: (
+                    metrics_details.update({"subj": e.data}),
+                    update_metrics_card(),
+                )
             )
         )
 
     metrics_cards_ui_pct = [
-            ft.Text(value="41",
+            ft.Text(value="—",
                     style=ft.TextStyle(
                             weight=ft.FontWeight.BOLD,
                             size=44,
                             color=ft.Colors.ON_SURFACE_VARIANT
                         )
                 ),
-           ft.Text(value="66.0%",
+           ft.Text(value="—",
                     style=ft.TextStyle(
                             weight=ft.FontWeight.BOLD,
                             size=34,
                             color=ft.Colors.ON_SURFACE_VARIANT
                         )
                 ),
-            ft.Text(value="22.0%",
+            ft.Text(value="—",
                     style=ft.TextStyle(
                             weight=ft.FontWeight.BOLD,
                             size=34,
                             color=ft.Colors.ON_SURFACE_VARIANT
                         )
                 ),
-            ft.Text(value="12.0%",
+            ft.Text(value="—",
                     style=ft.TextStyle(
                             weight=ft.FontWeight.BOLD,
                             size=34,
@@ -245,21 +258,21 @@ def main(page: ft.Page):
                 ),
         ]
     metrics_cards_ui_tct = [
-            ft.Text(value="27 out of 41",
+            ft.Text(value="No data",
                     style=ft.TextStyle(
                             weight=ft.FontWeight.BOLD,
                             size=16,
                             color=ft.Colors.ON_SURFACE_VARIANT
                         )
                 ),
-            ft.Text(value="9 out of 41",
+            ft.Text(value="No data",
                     style=ft.TextStyle(
                             weight=ft.FontWeight.BOLD,
                             size=16,
                             color=ft.Colors.ON_SURFACE_VARIANT
                         )
                 ),
-            ft.Text(value="5 out of 41",
+            ft.Text(value="No data",
                     style=ft.TextStyle(
                             weight=ft.FontWeight.BOLD,
                             size=16,
@@ -301,13 +314,19 @@ def main(page: ft.Page):
         cam_status_1.value = "Scanner active" if camera_active_status else "Scanner inactive"
         cam_status_2.value = "Camera connected" if camera_active_status else "Camera disconnected"
 
+    # only displays the recent activity for the day
     def update_recent_activity():
         recent_activity_column.controls.clear()
         
+        date_today = datetime.today().date()
+        
         rows = db.get_attendance_log()
-        if rows:
+        if rows:            
             index = 0
             for r in rows:
+                if r['date'] != date_today:
+                    return
+                
                 index += 1
                 recent_activity_column.controls.append(
                     ft.Text(f"[{r['time']}] : {r['student_id']}\n{r['student_name']}", size=11)
@@ -329,10 +348,10 @@ def main(page: ft.Page):
                 )
         else:
             today_str = datetime.now().strftime("%A").lower()
-            is_today: bool
+            is_today: bool = False
             
             for s in schedules:
-                is_today = str(s.get('day')).capitalize == today_str
+                is_today = str(s.get('day')).lower() == today_str
                 if is_today:
                     day_schedule_column.controls.append(
                         ft.Container(
@@ -344,23 +363,58 @@ def main(page: ft.Page):
                                     ft.Text(f"{s.get('sub_id','')} — {s.get('sub_tt','')}",
                                             style=ft.TextStyle(weight=ft.FontWeight.BOLD, size=15,
                                                             color=ft.Colors.ON_SURFACE_VARIANT)),
-                                    ft.Text(f"{s.get('crs_id','')} {s.get('yr_lvl','')}{s.get('sect','')}  |  {str(s.get('day')).capitalize}  |  {s.get('label','')}",
+                                    ft.Text(f"{s.get('crs_id','')} {s.get('yr_lvl','')}{s.get('sect','')}  |  {str(s.get('day')).capitalize()}  |  {s.get('label','')}",
                                             style=ft.TextStyle(size=13, color=ft.Colors.ON_SURFACE_VARIANT)),
                                 ], spacing=4),
                             ])
                         )
                     )
-            
-                else:
-                    day_schedule_column.controls.clear()
-                    day_schedule_column.controls.append(
-                            ft.Text(value="+ You have no schedule lined up for today.")
-                        )
-                
-    # TODO: Finish this for later; values should depend on the selected filter for section or subject
-    # they should automatically update upon selection
+                    
+            if len(day_schedule_column.controls) == 0:
+                day_schedule_column.controls.append(
+                        ft.Text(value="+ You have no schedule lined up for today.")
+                    )
+       
+    # FIXME: Should be able to display with what is selected in the dropdowns         
     def update_metrics_card():
-        pass
+        b_id = metrics_details['b_id']
+        subj = metrics_details['subj']
+
+        if not b_id:
+            return
+
+        c_id = db.get_class_id(current_u_id, subj, b_id) if subj else None
+
+        data = db.get_session_analytics(
+            c_id, date.today(), session_details['fin'],
+            subject_id=subj, block_id=b_id
+        ) if c_id else None
+
+        # if there's nothing then shows hardcoded text
+        if not data:
+            metrics_cards_ui_pct[0].value = "—"
+            metrics_cards_ui_pct[1].value = "—"
+            metrics_cards_ui_pct[2].value = "—"
+            metrics_cards_ui_pct[3].value = "—"
+            metrics_cards_ui_tct[0].value = "No data"
+            metrics_cards_ui_tct[1].value = "No data"
+            metrics_cards_ui_tct[2].value = "No data"
+        # shows actual data if it exists
+        else:
+            total = data['total']
+            metrics_cards_ui_pct[0].value = str(total)
+            metrics_cards_ui_pct[1].value = f"{data['on_time_pct']}%"
+            metrics_cards_ui_pct[2].value = f"{data['late_pct']}%"
+            metrics_cards_ui_pct[3].value = f"{data['absent_pct']}%"
+            metrics_cards_ui_tct[0].value = f"{data['on_time']} out of {total}"
+            metrics_cards_ui_tct[1].value = f"{data['late']} out of {total}"
+            metrics_cards_ui_tct[2].value = f"{data['absent']} out of {total}"
+
+        # update the cards
+        for p in metrics_cards_ui_pct:
+            p.update()
+        for t in metrics_cards_ui_tct:
+            t.update()
                 
     
     #* PAGE 2 COMPONENTS
@@ -399,7 +453,19 @@ def main(page: ft.Page):
             ),
         ]
     
+    def clear_nsession_fields():
+        setattr(nsession_type_toggle, 'selected', ["regular"])
+        setattr(nsession_timeslot_select, 'content', nsession_timeslot_dropdown)
+        
+        setattr(nsession_bgn_field, 'value', "")
+        setattr(nsession_fin_field, 'value', "")
+        setattr(nsession_sect_dropdown.content, 'value', "Default")
+        setattr(nsession_subj_dropdown.content, 'value', "Default")
+        setattr(nsession_timeslot_dropdown.content, 'value', "Default")
+    
     def new_session():
+        clear_nsession_fields()
+        
         update_sect_options()
         subject_options.clear()
         timeslot_options.clear()
@@ -882,7 +948,10 @@ def main(page: ft.Page):
                 return
             
             session_details['bgn'] = convert_time(nsession_bgn_field.value.strip())
-            session_details['fin'] = convert_time(nsession_fin_field.value.strip())            
+            session_details['fin'] = convert_time(nsession_fin_field.value.strip())
+            
+            if session_details['bgn'] == None or session_details['fin'] == None:
+                return
             
         else:
             if nsession_timeslot_dropdown.content.value is None:
@@ -904,11 +973,7 @@ def main(page: ft.Page):
         
         session_details['c_id'] = db.get_class_id(current_u_id, session_details['subj'], session_details['b_id'])
 
-        setattr(nsession_bgn_field, 'value', "")
-        setattr(nsession_fin_field, 'value', "")
-        setattr(nsession_sect_dropdown.content, 'value', "Default")
-        setattr(nsession_subj_dropdown.content, 'value', "Default")
-        setattr(nsession_timeslot_dropdown.content, 'value', "Default")
+        clear_nsession_fields()
 
         nsession_details['subj'] = ""
         nsession_details['b_id'] = -1
@@ -948,56 +1013,61 @@ def main(page: ft.Page):
                     weight=ft.FontWeight.NORMAL,
                     size=15,
                     color=ft.Colors.ON_SURFACE_VARIANT
-                )
+                ),
             ),
         ft.Text(value="---",
                 style=ft.TextStyle(
                     weight=ft.FontWeight.NORMAL,
                     size=15,
                     color=ft.Colors.ON_SURFACE_VARIANT
-                )
+                ),
             ),
         ft.Text(value="---",
                 style=ft.TextStyle(
                     weight=ft.FontWeight.NORMAL,
                     size=15,
                     color=ft.Colors.ON_SURFACE_VARIANT
-                )
+                ),
             ),
         ft.Text(value="---",
                 style=ft.TextStyle(
                     weight=ft.FontWeight.NORMAL,
                     size=15,
                     color=ft.Colors.ON_SURFACE_VARIANT
-                )
+                ),
+                expand=1
             ),
         ft.Text(value="---",
                 style=ft.TextStyle(
                     weight=ft.FontWeight.NORMAL,
                     size=15,
                     color=ft.Colors.ON_SURFACE_VARIANT
-                )
+                ),
+                expand=1
             ),
         ft.Text(value="---",        # ON TIME
                 style=ft.TextStyle(
                     weight=ft.FontWeight.NORMAL,
-                    size=15,
+                    size=13,
                     color=ft.Colors.ON_SURFACE_VARIANT
-                )
+                ),
+                expand=1
             ),
         ft.Text(value="---",        # LATE
                 style=ft.TextStyle(
                     weight=ft.FontWeight.NORMAL,
-                    size=15,
+                    size=13,
                     color=ft.Colors.ON_SURFACE_VARIANT
-                )
+                ),
+                expand=1
             ),
         ft.Text(value="---",        # ABSENT
                 style=ft.TextStyle(
                     weight=ft.FontWeight.NORMAL,
-                    size=15,
+                    size=13,
                     color=ft.Colors.ON_SURFACE_VARIANT
-                )
+                ),
+                expand=1
             ),
         ]
     
@@ -1134,7 +1204,7 @@ def main(page: ft.Page):
                                 ),
                             ft.Divider(),
                             recent_activity_column,
-                            ], margin=ft.Margin(20, 15, 20, 15),
+                            ], margin=ft.Margin(20, 15, 20, 15), 
                         )
                     ),
                 ], spacing=20, expand=2
@@ -1165,7 +1235,7 @@ def main(page: ft.Page):
                         ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN
                     ), 
                 ft.Row([
-                    ft.Container(   # TODO: Update metrics cards aesthetics
+                    ft.Container(
                         align=ft.Alignment.TOP_CENTER,
                         bgcolor=ft.Colors.SURFACE_CONTAINER,
                         width=280, height= 200,
@@ -1574,10 +1644,11 @@ def main(page: ft.Page):
                                                     weight=ft.FontWeight.BOLD,
                                                     size=16,
                                                     color=ft.Colors.ON_SURFACE_VARIANT
-                                                )
+                                                ),
+                                                expand=1
                                             ),
                                             selected_session_ui[3]
-                                            ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN
+                                            ], #alignment=ft.MainAxisAlignment.SPACE_BETWEEN
                                         ),
                                 ft.Row([
                                         ft.Text(value="+ SUBJECT: ",
@@ -1585,10 +1656,11 @@ def main(page: ft.Page):
                                                     weight=ft.FontWeight.BOLD,
                                                     size=16,
                                                     color=ft.Colors.ON_SURFACE_VARIANT
-                                                )
+                                                ),
+                                                expand=1
                                             ),
                                             selected_session_ui[4]
-                                            ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN
+                                            ], #alignment=ft.MainAxisAlignment.SPACE_BETWEEN
                                         ),
                                     ],
                                 ),
@@ -1600,10 +1672,11 @@ def main(page: ft.Page):
                                                     weight=ft.FontWeight.BOLD,
                                                     size=16,
                                                     color=ft.Colors.ON_SURFACE_VARIANT
-                                                )
+                                                ),
+                                                expand=1
                                             ),
                                             selected_session_ui[5]
-                                            ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN
+                                            ], #alignment=ft.MainAxisAlignment.SPACE_BETWEEN
                                         ),
                                 ft.Row([
                                         ft.Text(value="+ LATE: ",
@@ -1611,10 +1684,11 @@ def main(page: ft.Page):
                                                     weight=ft.FontWeight.BOLD,
                                                     size=16,
                                                     color=ft.Colors.ON_SURFACE_VARIANT
-                                                )
+                                                ),
+                                                expand=1
                                             ),
                                             selected_session_ui[6]
-                                            ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN
+                                            ], #alignment=ft.MainAxisAlignment.SPACE_BETWEEN
                                         ),
                                 ft.Row([
                                         ft.Text(value="+ ABSENT: ",
@@ -1622,10 +1696,11 @@ def main(page: ft.Page):
                                                     weight=ft.FontWeight.BOLD,
                                                     size=16,
                                                     color=ft.Colors.ON_SURFACE_VARIANT
-                                                )
+                                                ),
+                                                expand=1
                                             ),
                                             selected_session_ui[7]
-                                            ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN
+                                            ], #alignment=ft.MainAxisAlignment.SPACE_BETWEEN
                                         ),
                                     ],
                                 ),
