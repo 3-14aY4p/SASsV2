@@ -41,7 +41,7 @@ def get_connection():
             host="localhost",
             user="Admin-110",
             password="attendance",
-            database="db_SASs",
+            database="db_smartattendance",
         )
 
         if conn.is_connected():
@@ -612,6 +612,69 @@ def get_session_log(class_id: int, session_date: date, session_end: time):
     finally: 
         conn.close()
 
+#* ADDED: analytics for each session
+# returns total enrolled, counts of on time, late, and absent, and their respective percentages
+def get_session_analytics(class_id: int, session_date: date, session_end: time):
+    conn = get_connection()
+    if not conn:
+        return None
+    
+    try:
+        curs = conn.cursor()
+
+        # get total enrolled for this class
+        curs.execute("""
+                SELECT COUNT(*)
+                FROM enrollment e
+                INNER JOIN class c ON e.block_id = c.block_id
+                WHERE c.class_id = %s
+            """,
+            (class_id,)
+        )
+        total_row = curs.fetchone()
+        total = total_row[0] if total_row else 0
+
+        # get per-status counts for this specific session
+        curs.execute("""
+                SELECT a.status, COUNT(*) as count
+                FROM attendance a
+                WHERE a.class_id = %s
+                    AND a.date = %s
+                    AND a.session_end = %s
+                GROUP BY a.status
+            """,
+            (class_id, session_date, session_end)
+        )
+        status_rows = curs.fetchall()
+
+        counts = {'on time': 0, 'late': 0, 'absent': 0}
+        for status, count in (status_rows or []):
+            if status in counts:
+                counts[status] = count
+
+        # absent = enrolled but no record
+        counts['absent'] = max(0, total - counts['on time'] - counts['late'])
+
+        ontime_pct = round(counts['on time'] / total * 100, 1) if total else 0.0
+        late_pct   = round(counts['late']    / total * 100, 1) if total else 0.0
+        absent_pct = round(counts['absent']  / total * 100, 1) if total else 0.0
+
+        return {
+            'total':       total,
+            'on_time':     counts['on time'],
+            'late':        counts['late'],
+            'absent':      counts['absent'],
+            'on_time_pct': ontime_pct,
+            'late_pct':    late_pct,
+            'absent_pct':  absent_pct,
+        }
+
+    except mysql.connector.Error as e:
+        print(f"ERR: {e}")
+        return None
+
+    finally: 
+        conn.close()
 
 # get all students in a class and their attendance status 
 def get_all_students_in_class(class_id: int):
