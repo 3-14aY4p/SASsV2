@@ -453,26 +453,29 @@ def get_all_schedules(instructor_id: str):
 
 
 # get attendance log for the current day or session
-def get_attendance_log(class_id: int = None, session_end: time = None):
+def get_attendance_log(class_id: int = None, session_end: time = None, instructor_id: str = None):
     conn = get_connection()
     if not conn:
         return None
-    
+
+    if instructor_id is None:
+        return None
+
     try:
         curs = conn.cursor()
 
-        filters = ["a.date = CURDATE()"]
-        params = []
+        filters = ["a.date = CURDATE()", "c.instructor_id = %s"]
+        params = [instructor_id]
 
-        # the toggle for it being the day or session
-        if class_id:
+        if class_id is not None:
             filters.append("c.class_id = %s")
             params.append(class_id)
-        if session_end:
+
+        if session_end is not None:
             filters.append("a.session_end = %s")
             params.append(str(session_end))
 
-        filters.append("a.status NOT IN ('absent')")            
+        filters.append("a.status NOT IN ('absent')")
 
         where = " AND ".join(filters)
 
@@ -491,7 +494,7 @@ def get_attendance_log(class_id: int = None, session_end: time = None):
             params
         )
         logs = curs.fetchall()
-        
+
         if not logs:
             return None
 
@@ -504,7 +507,7 @@ def get_attendance_log(class_id: int = None, session_end: time = None):
         print(f"ERR: {e}")
         return None
 
-    finally: 
+    finally:
         conn.close()
 
 # get list of all classes
@@ -750,90 +753,94 @@ def get_students_of_status(class_id: int, session_date: date = datetime.today().
     finally: 
         conn.close() 
 
-# FIXME: I am gonna go motherfucking crazy
 # full analytics for a specific session — used for the expanded view and export
 def get_session_analytics(class_id: int = None, session_date: date = None, session_end: time = None,
-                          subject_id: str = None, block_id: int = None):
+                          subject_id: str = None, block_id: int = None, instructor_id: str = None):
     conn = get_connection()
     if not conn:
+        return None
+
+    if instructor_id is None:
         return None
 
     try:
         curs = conn.cursor()
 
-        filters = []
-        params = []
-
-        if class_id:
-            filters.append("c.class_id = %s")
-            params.append(class_id)
-        if subject_id:
-            filters.append("c.subject_id = %s")
-            params.append(subject_id)
-        if block_id:
-            filters.append("c.block_id = %s")
-            params.append(block_id)
-
-        scope_where = ("AND " + " AND ".join(filters)) if filters else ""
-
-        # session filters — when (all optional)
-        session_filters = []
-        session_params = []
-
-        if session_date:
-            session_filters.append("a.date = %s")
-            session_params.append(session_date)
-        if session_end:
-            session_filters.append("a.session_end = %s")
-            session_params.append(session_end)
-
-        session_where = ("AND " + " AND ".join(session_filters)) if session_filters else ""
-
-        curs.execute(f"""
-                SELECT COUNT(DISTINCT e.student_id) * COUNT(DISTINCT a.date, a.session_end)
+        # Specific session mode
+        if class_id is not None and session_date is not None and session_end is not None:
+            curs.execute("""
+                SELECT
+                    COUNT(DISTINCT e.student_id) AS total_students,
+                    COUNT(DISTINCT CASE WHEN a.status = 'on time' THEN a.student_id END) AS on_time,
+                    COUNT(DISTINCT CASE WHEN a.status = 'late' THEN a.student_id END) AS late
                 FROM enrollment e
                 INNER JOIN class c ON e.block_id = c.block_id
-                LEFT JOIN attendance a ON a.class_id = c.class_id
-                WHERE 1=1
-                    {scope_where}
-            """,
-            params
-        )
-        total_row = curs.fetchone()
-        total = total_row[0] if total_row else 0
+                LEFT JOIN attendance a
+                    ON a.class_id = c.class_id
+                   AND a.date = %s
+                   AND a.session_end = %s
+                   AND a.student_id = e.student_id
+                WHERE c.class_id = %s
+                  AND c.instructor_id = %s
+            """, (session_date, session_end, class_id, instructor_id))
 
-        curs.execute(f"""
-                SELECT a.status, COUNT(*) as count
-                FROM attendance a
-                INNER JOIN class c ON a.class_id = c.class_id
-                WHERE 1=1
-                    {session_where}
-                    {scope_where}
-                GROUP BY a.status
-            """,
-            session_params + params
-        )
-        status_rows = curs.fetchall()
+            row = curs.fetchone()
 
-        counts = {'on time': 0, 'late': 0}
-        for status, count in (status_rows or []):
-            if status in counts:
-                counts[status] = count
+        # All-time by subject and/or section
+        else:
+            filters = ["c.instructor_id = %s"]
+            params = [instructor_id]
 
-        absent = max(0, total - counts['on time'] - counts['late'])
+            if subject_id is not None:
+                filters.append("c.subject_id = %s")
+                params.append(subject_id)
 
-        ontime_pct = round(counts['on time'] / total * 100, 1) if total else 0.0
-        late_pct = round(counts['late'] / total * 100, 1) if total else 0.0
-        absent_pct = round(absent / total * 100, 1) if total else 0.0
+            if block_id is not None:
+                filters.append("c.block_id = %s")
+                params.append(block_id)
+
+            where = " AND ".join(filters)
+
+            curs.execute(f"""
+                SELECT
+                    COUNT(DISTINCT e.student_id) AS total_students,
+                    COUNT(DISTINCT CASE WHEN a.status = 'on time' THEN a.student_id END) AS on_time,
+                    COUNT(DISTINCT CASE WHEN a.status = 'late' THEN a.student_id END) AS late
+                FROM enrollment e
+                INNER JOIN class c ON e.block_id = c.block_id
+                LEFT JOIN attendance a
+                    ON a.class_id = c.class_id
+                   AND a.student_id = e.student_id
+                   AND a.status IN ('on time', 'late')
+                WHERE {where}
+            """, params)
+
+            row = curs.fetchone()
+
+        if not row:
+            return {
+                'total': 0,
+                'on_time': 0,
+                'late': 0,
+                'absent': 0,
+                'on_time_pct': 0.0,
+                'late_pct': 0.0,
+                'absent_pct': 0.0,
+            }
+
+        total = row[0] or 0
+        on_time = row[1] or 0
+        late = row[2] or 0
+        absent = max(0, total - on_time - late)
 
         return {
             'total': total,
-            'on_time': counts['on time'],
-            'late': counts['late'],
+            'on_time': on_time,
+            'late': late,
             'absent': absent,
-            'on_time_pct': ontime_pct,
-            'late_pct': late_pct,
-            'absent_pct': absent_pct,
+            'on_time_pct': round(on_time / total * 100, 1) if total else 0.0,
+            'late_pct': round(late / total * 100, 1) if total else 0.0,
+            'absent_pct': round(absent / total * 100, 1) if total else 0.0,
         }
 
     except mysql.connector.Error as e:

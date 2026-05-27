@@ -122,10 +122,11 @@ def main(page: ft.Page):
         
         update_user_details()
         update_recent_activity()
+        update_day_schedule()
+        
         update_sect_options()
         update_subj_options()
-        update_metrics_card()
-        update_day_schedule()
+        
         start_dashb_time_thread()
         
         current_navi.content = navbar
@@ -137,9 +138,17 @@ def main(page: ft.Page):
         current_user = ""
         current_u_id = ""
         
+        clear_session()
+        
+        update_sect_options()
+        update_subj_options()
+        
+        clear_metrics_card()
+        update_metrics_card()
+    
         current_navi.content = None
         current_page.content = page_0
-    
+        
     
     #* PAGE 1 COMPONENTS
     
@@ -197,7 +206,6 @@ def main(page: ft.Page):
         "subj": None,
     }
 
-    # TODO: Update with the functions
     metrics_sect_dropdown = ft.Container(
             height=50, width=240,
             content=ft.Dropdown(
@@ -258,24 +266,24 @@ def main(page: ft.Page):
                 ),
         ]
     metrics_cards_ui_tct = [
-            ft.Text(value="No data",
+            ft.Text(value="Across all sessions",
                     style=ft.TextStyle(
                             weight=ft.FontWeight.BOLD,
-                            size=16,
+                            size=14,
                             color=ft.Colors.ON_SURFACE_VARIANT
                         )
                 ),
-            ft.Text(value="No data",
+            ft.Text(value="Across all sessions",
                     style=ft.TextStyle(
                             weight=ft.FontWeight.BOLD,
-                            size=16,
+                            size=14,
                             color=ft.Colors.ON_SURFACE_VARIANT
                         )
                 ),
-            ft.Text(value="No data",
+            ft.Text(value="Across all sessions",
                     style=ft.TextStyle(
                             weight=ft.FontWeight.BOLD,
-                            size=16,
+                            size=14,
                             color=ft.Colors.ON_SURFACE_VARIANT
                         )
                 ),
@@ -320,7 +328,7 @@ def main(page: ft.Page):
         
         date_today = datetime.today().date()
         
-        rows = db.get_attendance_log()
+        rows = db.get_attendance_log(instructor_id=current_u_id)
         if rows:            
             index = 0
             for r in rows:
@@ -374,33 +382,35 @@ def main(page: ft.Page):
                 day_schedule_column.controls.append(
                         ft.Text(value="+ You have no schedule lined up for today.")
                     )
-       
-    # FIXME: Should be able to display with what is selected in the dropdowns         
+    
+    def clear_metrics_card():
+        metrics_details['b_id'] = None
+        metrics_details['subj'] = None
+        
+        metrics_cards_ui_pct[0].value = "—"
+        metrics_cards_ui_pct[1].value = "—"
+        metrics_cards_ui_pct[2].value = "—"
+        metrics_cards_ui_pct[3].value = "—"
+        
+        metrics_sect_dropdown.content.value = None
+        metrics_subj_dropdown.content.value = None
+    
     def update_metrics_card():
         b_id = metrics_details['b_id']
         subj = metrics_details['subj']
 
-        data = db.get_session_analytics(subject_id=subj, block_id=b_id)
+        data = None
+        if subj is not None or b_id is not None:
+            data = db.get_session_analytics(subject_id=subj, block_id=b_id, instructor_id=current_u_id)
 
-        # if there's nothing then shows hardcoded text
         if not data:
-            metrics_cards_ui_pct[0].value = "—"
-            metrics_cards_ui_pct[1].value = "—"
-            metrics_cards_ui_pct[2].value = "—"
-            metrics_cards_ui_pct[3].value = "—"
-            metrics_cards_ui_tct[0].value = "No data"
-            metrics_cards_ui_tct[1].value = "No data"
-            metrics_cards_ui_tct[2].value = "No data"
-        # shows actual data if it exists
+            clear_metrics_card()
         else:
             total = data['total']
             metrics_cards_ui_pct[0].value = str(total)
             metrics_cards_ui_pct[1].value = f"{data['on_time_pct']}%"
             metrics_cards_ui_pct[2].value = f"{data['late_pct']}%"
             metrics_cards_ui_pct[3].value = f"{data['absent_pct']}%"
-            metrics_cards_ui_tct[0].value = f"{data['on_time']} out of {total}"
-            metrics_cards_ui_tct[1].value = f"{data['late']} out of {total}"
-            metrics_cards_ui_tct[2].value = f"{data['absent']} out of {total}"
                 
     
     #* PAGE 2 COMPONENTS
@@ -439,6 +449,24 @@ def main(page: ft.Page):
             ),
         ]
     
+    def clear_session():
+        nonlocal session_details, session_active
+            
+        if camera_active:
+            kill_scanner_thread()
+            
+        session_details ={
+                "bgn": None,
+                "fin": None,
+                "sect": "",
+                "subj": "",
+                "type": "",
+                "b_id": -1,     # block id
+                "c_id": -1      # class id
+            }
+        update_session_ui_comp(True)
+        session_active = False
+    
     def clear_nsession_fields():
         setattr(nsession_type_toggle, 'selected', ["regular"])
         setattr(nsession_timeslot_select, 'content', nsession_timeslot_dropdown)
@@ -462,24 +490,8 @@ def main(page: ft.Page):
     
     def cancel_current_session():
         def on_confirm():
-            nonlocal session_details, session_active
-            
-            if camera_active:
-                kill_scanner_thread()
-                
-                session_details ={
-                        "bgn": None,
-                        "fin": None,
-                        "sect": "",
-                        "subj": "",
-                        "type": "",
-                        "b_id": -1,     # block id
-                        "c_id": -1      # class id
-                    }
-                update_session_ui_comp(True)
-                session_active = False
-                
-                page.update()
+            clear_session()
+            page.update()
                 
         confirmation_popup("Confirm", "Do you want to cancel current session?", on_confirm)
     
@@ -632,7 +644,11 @@ def main(page: ft.Page):
     def update_attendance_log():
         dt_attendance_log.rows.clear()
         
-        rows = db.get_attendance_log(session_details['c_id'], session_details['fin'])
+        if all(session_details.values()):
+            rows = db.get_attendance_log(session_details['c_id'], session_details['fin'])
+        else:
+            rows = db.get_attendance_log(instructor_id=current_u_id)
+        
         if rows:
             for r in rows:
                 dt_attendance_log.rows.append(
@@ -1229,6 +1245,8 @@ def main(page: ft.Page):
                                         on_click=lambda e: (
                                             setattr(metrics_sect_dropdown.content, "value", None),
                                             setattr(metrics_subj_dropdown.content, "value", None),
+                                            
+                                            clear_metrics_card()
                                         )
                                     )
                                 ]
@@ -1269,13 +1287,14 @@ def main(page: ft.Page):
                                     controls=[
                                         metrics_cards_ui_pct[1],
                                         ft.Column([
+                                            metrics_cards_ui_tct[0],
                                             ft.Text("ON TIME",
                                                 style=ft.TextStyle(
                                                         weight=ft.FontWeight.BOLD,
                                                         size=32,
                                                         color=ft.Colors.ON_SURFACE_VARIANT
                                                     )),
-                                            metrics_cards_ui_tct[0],], spacing=-5),
+                                            ], spacing=-5),
                                         ft.Icon(icon=ft.Icons.TIMER_OUTLINED,
                                                 align=ft.Alignment.BOTTOM_RIGHT,
                                                 size=32, color=ft.Colors.ON_SURFACE_VARIANT
@@ -1294,13 +1313,14 @@ def main(page: ft.Page):
                                     controls=[
                                         metrics_cards_ui_pct[2],
                                         ft.Column([
+                                            metrics_cards_ui_tct[1],
                                             ft.Text("LATE",
                                                 style=ft.TextStyle(
                                                         weight=ft.FontWeight.BOLD,
                                                         size=32,
                                                         color=ft.Colors.ON_SURFACE_VARIANT
                                                     )),
-                                            metrics_cards_ui_tct[1],], spacing=-5),
+                                            ], spacing=-5),
                                         ft.Icon(icon=ft.Icons.WARNING,
                                                 align=ft.Alignment.BOTTOM_RIGHT,
                                                 size=32, color=ft.Colors.ON_SURFACE_VARIANT
@@ -1319,13 +1339,14 @@ def main(page: ft.Page):
                                     controls=[
                                         metrics_cards_ui_pct[3],
                                         ft.Column([
+                                                metrics_cards_ui_tct[2],
                                                 ft.Text("ABSENT",
                                                 style=ft.TextStyle(
                                                         weight=ft.FontWeight.BOLD,
                                                         size=32,
                                                         color=ft.Colors.ON_SURFACE_VARIANT
                                                     )),
-                                            metrics_cards_ui_tct[2],], spacing=-5),
+                                            ], spacing=-5),
                                         ft.Icon(icon=ft.Icons.NO_ACCOUNTS,
                                                 align=ft.Alignment.BOTTOM_RIGHT,
                                                 size=32, color=ft.Colors.ON_SURFACE_VARIANT
@@ -1798,6 +1819,7 @@ def main(page: ft.Page):
             update_sect_options()
             update_subj_options()
             update_metrics_card()
+            
             kill_scanner_thread()
             
             current_page.content = page_1
