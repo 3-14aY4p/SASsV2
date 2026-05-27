@@ -191,6 +191,52 @@ def main(page: ft.Page):
         )
 
     # TODO: Add function for updating these
+
+    metrics_details = {
+        "b_id": None,  # remembers which section is selected
+        "subj": None,  # remembers which subject is selected
+    }
+
+    def update_metrics_card():
+        b_id = metrics_details['b_id']
+        subj = metrics_details['subj']
+
+        if not b_id:
+            return
+
+        c_id = db.get_class_id(current_u_id, subj, b_id) if subj else None
+
+        data = db.get_session_analytics(
+            c_id, date.today(), session_details['fin'],
+            subject_id=subj, block_id=b_id
+        ) if c_id else None
+
+        # if there's nothing then shows hardcoded text
+        if not data:
+            metrics_cards_ui_pct[0].value = "—"
+            metrics_cards_ui_pct[1].value = "—"
+            metrics_cards_ui_pct[2].value = "—"
+            metrics_cards_ui_pct[3].value = "—"
+            metrics_cards_ui_tct[0].value = "No data"
+            metrics_cards_ui_tct[1].value = "No data"
+            metrics_cards_ui_tct[2].value = "No data"
+        # shows actual data if it exists
+        else:
+            total = data['total']
+            metrics_cards_ui_pct[0].value = str(total)
+            metrics_cards_ui_pct[1].value = f"{data['on_time_pct']}%"
+            metrics_cards_ui_pct[2].value = f"{data['late_pct']}%"
+            metrics_cards_ui_pct[3].value = f"{data['absent_pct']}%"
+            metrics_cards_ui_tct[0].value = f"{data['on_time']} out of {total}"
+            metrics_cards_ui_tct[1].value = f"{data['late']} out of {total}"
+            metrics_cards_ui_tct[2].value = f"{data['absent']} out of {total}"
+
+        # update the cards
+        for t in metrics_cards_ui_pct:
+            t.update()
+        for t in metrics_cards_ui_tct:
+            t.update()
+
     metrics_sect_dropdown = ft.Container(
             height=50, width=240,
             content=ft.Dropdown(
@@ -199,7 +245,11 @@ def main(page: ft.Page):
                 border_color=ft.Colors.SURFACE_BRIGHT,
                 label=ft.Text("Section"),
                 options=section_options,
-                # on_select=lambda e: 
+                on_select=lambda e: (
+                    metrics_details.update({"b_id": e.data, "subj": None}),
+                    update_subj_options(metrics_details['b_id']),
+                    update_metrics_card(),
+                )
             )
         )
     metrics_subj_dropdown = ft.Container(
@@ -210,33 +260,36 @@ def main(page: ft.Page):
                 border_color=ft.Colors.SURFACE_BRIGHT,
                 label=ft.Text("Subject"),
                 options=subject_options,
-                # on_select=lambda e: 
+                on_select=lambda e: (
+                    metrics_details.update({"subj": e.data}),
+                    update_metrics_card(),
+                )
             )
         )
 
     metrics_cards_ui_pct = [
-            ft.Text(value="41",
+            ft.Text(value="0",
                     style=ft.TextStyle(
                             weight=ft.FontWeight.BOLD,
                             size=44,
                             color=ft.Colors.ON_SURFACE_VARIANT
                         )
                 ),
-           ft.Text(value="66.0%",
+           ft.Text(value="0",
                     style=ft.TextStyle(
                             weight=ft.FontWeight.BOLD,
                             size=34,
                             color=ft.Colors.ON_SURFACE_VARIANT
                         )
                 ),
-            ft.Text(value="22.0%",
+            ft.Text(value="0",
                     style=ft.TextStyle(
                             weight=ft.FontWeight.BOLD,
                             size=34,
                             color=ft.Colors.ON_SURFACE_VARIANT
                         )
                 ),
-            ft.Text(value="12.0%",
+            ft.Text(value="0",
                     style=ft.TextStyle(
                             weight=ft.FontWeight.BOLD,
                             size=34,
@@ -245,21 +298,21 @@ def main(page: ft.Page):
                 ),
         ]
     metrics_cards_ui_tct = [
-            ft.Text(value="27 out of 41",
+            ft.Text(value="0 out of 0",
                     style=ft.TextStyle(
                             weight=ft.FontWeight.BOLD,
                             size=16,
                             color=ft.Colors.ON_SURFACE_VARIANT
                         )
                 ),
-            ft.Text(value="9 out of 41",
+            ft.Text(value="0 out of 0",
                     style=ft.TextStyle(
                             weight=ft.FontWeight.BOLD,
                             size=16,
                             color=ft.Colors.ON_SURFACE_VARIANT
                         )
                 ),
-            ft.Text(value="5 out of 41",
+            ft.Text(value="0 out of 0",
                     style=ft.TextStyle(
                             weight=ft.FontWeight.BOLD,
                             size=16,
