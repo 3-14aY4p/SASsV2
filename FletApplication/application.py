@@ -120,6 +120,8 @@ def main(page: ft.Page):
         
         update_user_details()
         update_recent_activity()
+        update_sect_options()
+        update_subj_options()
         update_metrics_card()
         update_day_schedule()
         start_dashb_time_thread()
@@ -197,7 +199,7 @@ def main(page: ft.Page):
                 border_color=ft.Colors.SURFACE_BRIGHT,
                 label=ft.Text("Section"),
                 options=section_options,
-                # on_select=lambda e: update_subj_options(int(e.data))
+                # on_select=lambda e: 
             )
         )
     metrics_subj_dropdown = ft.Container(
@@ -208,15 +210,62 @@ def main(page: ft.Page):
                 border_color=ft.Colors.SURFACE_BRIGHT,
                 label=ft.Text("Subject"),
                 options=subject_options,
-                # on_select=lambda e: update_subj_options(int(e.data))
+                # on_select=lambda e: 
             )
         )
 
-    metrics_cards_ui = [
-            ft.Text(),
-            ft.Text(),
-            ft.Text(),
-            ft.Text(),
+    metrics_cards_ui_pct = [
+            ft.Text(value="41",
+                    style=ft.TextStyle(
+                            weight=ft.FontWeight.BOLD,
+                            size=44,
+                            color=ft.Colors.ON_SURFACE_VARIANT
+                        )
+                ),
+           ft.Text(value="66.0%",
+                    style=ft.TextStyle(
+                            weight=ft.FontWeight.BOLD,
+                            size=34,
+                            color=ft.Colors.ON_SURFACE_VARIANT
+                        )
+                ),
+            ft.Text(value="22.0%",
+                    style=ft.TextStyle(
+                            weight=ft.FontWeight.BOLD,
+                            size=34,
+                            color=ft.Colors.ON_SURFACE_VARIANT
+                        )
+                ),
+            ft.Text(value="12.0%",
+                    style=ft.TextStyle(
+                            weight=ft.FontWeight.BOLD,
+                            size=34,
+                            color=ft.Colors.ON_SURFACE_VARIANT
+                        )
+                ),
+        ]
+    metrics_cards_ui_tct = [
+            ft.Text(value="27 out of 41",
+                    style=ft.TextStyle(
+                            weight=ft.FontWeight.BOLD,
+                            size=16,
+                            color=ft.Colors.ON_SURFACE_VARIANT
+                        )
+                ),
+            ft.Text(value="9 out of 41",
+                    style=ft.TextStyle(
+                            weight=ft.FontWeight.BOLD,
+                            size=16,
+                            color=ft.Colors.ON_SURFACE_VARIANT
+                        )
+                ),
+            ft.Text(value="5 out of 41",
+                    style=ft.TextStyle(
+                            weight=ft.FontWeight.BOLD,
+                            size=16,
+                            color=ft.Colors.ON_SURFACE_VARIANT
+                        )
+                ),
         ]
     
     db_session_details = [
@@ -309,6 +358,7 @@ def main(page: ft.Page):
                         )
                 
     # TODO: Finish this for later; values should depend on the selected filter for section or subject
+    # they should automatically update upon selection
     def update_metrics_card():
         pass
                 
@@ -457,7 +507,7 @@ def main(page: ft.Page):
 
         log_attendance(ret_string)
         
-    # FIXME: The UI updates are inconsistent despite having a ret_string
+    # FIXME: The UI updates (yung sa may scanner output) are inconsistent despite having a ret_string
     def log_attendance(student_id: str, input_type: str = "scan"):
         if not all(session_details.values()):
             alert_snackbar("ERR: No active session.")
@@ -564,7 +614,6 @@ def main(page: ft.Page):
                 border_color=ft.Colors.SURFACE_BRIGHT,
                 label=ft.Text("Section"),
                 options=section_options,
-                on_select=lambda e: update_subj_options(int(e.data))
             )
         )
     filter_subj_dropdown = ft.Container(
@@ -575,7 +624,6 @@ def main(page: ft.Page):
                 border_color=ft.Colors.SURFACE_BRIGHT,
                 label=ft.Text("Subject"),
                 options=subject_options,
-                # on_select=
             )
         )
     
@@ -605,7 +653,7 @@ def main(page: ft.Page):
             for r in rows:
                 expand_btn = ft.IconButton(
                     icon=ft.Icons.ARROW_OUTWARD,
-                    on_click=lambda e, d=r: expand_class_item(d)
+                    on_click=lambda e, d=r: on_expand_class_item(d)
                 )
                 dt_class_log.rows.append(
                     ft.DataRow(cells=[
@@ -631,7 +679,7 @@ def main(page: ft.Page):
                     )
                 )
     
-    def expand_class_item(class_data: dict):
+    def on_expand_class_item(class_data: dict):
         nonlocal selected_session
         selected_session = class_data
         
@@ -639,9 +687,9 @@ def main(page: ft.Page):
         
         analytics = db.get_session_analytics(class_data['c_id'], class_data['date'], class_data['sched_fin'])
         
-        ot_pct = f"{analytics['on_time_pct']}%" if analytics['on_time_pct'] != 0.0 else "0.00%"
-        lt_pct = f"{analytics['late_pct']}%" if analytics['late_pct'] != 0.0 else "0.00%"
-        ab_pct = f"{analytics['absent_pct']}%" if analytics['absent_pct'] != 0.0 else "0.00%"
+        ot_pct = f"{analytics['on_time_pct']}%"
+        lt_pct = f"{analytics['late_pct']}%"
+        ab_pct = f"{analytics['absent_pct']}%"
         
         selected_session_ui[0].value = f"+ {class_data['date']}"
         selected_session_ui[1].value = f"+ {class_data['time_label']}"
@@ -776,7 +824,7 @@ def main(page: ft.Page):
                     )
                 )
     
-    def update_subj_options(block_id: int):
+    def update_subj_options(block_id: int = None):
         subject_options.clear()
         
         subjects = db.get_subjects(current_u_id, block_id)
@@ -1125,8 +1173,17 @@ def main(page: ft.Page):
                         content= ft.Column(
                                     expand=True, margin=20,
                                     controls=[
-                                        ft.Text("TOTAL STUDENTS", size=18),
-                                        metrics_cards_ui[0],
+                                        ft.Text("STUDENTS",
+                                                style=ft.TextStyle(
+                                                        weight=ft.FontWeight.BOLD,
+                                                        size=34,
+                                                        color=ft.Colors.ON_SURFACE_VARIANT
+                                                    )),
+                                        metrics_cards_ui_pct[0],
+                                        ft.Icon(icon=ft.Icons.PEOPLE,
+                                                align=ft.Alignment.BOTTOM_RIGHT,
+                                                size=32, color=ft.Colors.ON_SURFACE_VARIANT
+                                            )
                                     ]
                                 ),
                             ),
@@ -1137,9 +1194,21 @@ def main(page: ft.Page):
                         border_radius=20,
                         content=ft.Column(
                                     expand=True, margin=20,
+                                    # vertical_alignment=ft.CrossAxisAlignment.START,
                                     controls=[
-                                        ft.Text("TOTAL ON TIME", size=18),
-                                        metrics_cards_ui[1],
+                                        metrics_cards_ui_pct[1],
+                                        ft.Column([
+                                            ft.Text("ON TIME",
+                                                style=ft.TextStyle(
+                                                        weight=ft.FontWeight.BOLD,
+                                                        size=32,
+                                                        color=ft.Colors.ON_SURFACE_VARIANT
+                                                    )),
+                                            metrics_cards_ui_tct[0],], spacing=-5),
+                                        ft.Icon(icon=ft.Icons.TIMER_OUTLINED,
+                                                align=ft.Alignment.BOTTOM_RIGHT,
+                                                size=32, color=ft.Colors.ON_SURFACE_VARIANT
+                                            )
                                     ]
                                 ),
                             ),
@@ -1150,9 +1219,21 @@ def main(page: ft.Page):
                         border_radius=20,
                         content=ft.Column(
                                     expand=True, margin=20,
+                                    # vertical_alignment=ft.CrossAxisAlignment.START,
                                     controls=[
-                                        ft.Text("TOTAL LATE", size=18),
-                                        metrics_cards_ui[2],
+                                        metrics_cards_ui_pct[2],
+                                        ft.Column([
+                                            ft.Text("LATE",
+                                                style=ft.TextStyle(
+                                                        weight=ft.FontWeight.BOLD,
+                                                        size=32,
+                                                        color=ft.Colors.ON_SURFACE_VARIANT
+                                                    )),
+                                            metrics_cards_ui_tct[1],], spacing=-5),
+                                        ft.Icon(icon=ft.Icons.WARNING,
+                                                align=ft.Alignment.BOTTOM_RIGHT,
+                                                size=32, color=ft.Colors.ON_SURFACE_VARIANT
+                                            )
                                     ]
                                 ),
                             ),
@@ -1163,9 +1244,21 @@ def main(page: ft.Page):
                         border_radius=20,
                         content=ft.Column(
                                     expand=True, margin=20,
+                                    # vertical_alignment=ft.CrossAxisAlignment.START,
                                     controls=[
-                                        ft.Text("TOTAL ABSENT", size=18),
-                                        metrics_cards_ui[3],
+                                        metrics_cards_ui_pct[3],
+                                        ft.Column([
+                                                ft.Text("ABSENT",
+                                                style=ft.TextStyle(
+                                                        weight=ft.FontWeight.BOLD,
+                                                        size=32,
+                                                        color=ft.Colors.ON_SURFACE_VARIANT
+                                                    )),
+                                            metrics_cards_ui_tct[2],], spacing=-5),
+                                        ft.Icon(icon=ft.Icons.NO_ACCOUNTS,
+                                                align=ft.Alignment.BOTTOM_RIGHT,
+                                                size=32, color=ft.Colors.ON_SURFACE_VARIANT
+                                            )
                                     ]
                                 ),
                             ),
@@ -1626,6 +1719,8 @@ def main(page: ft.Page):
             start_dashb_time_thread()
             update_cam_status()
             update_recent_activity()
+            update_sect_options()
+            update_subj_options()
             update_metrics_card()
             kill_scanner_thread()
             
@@ -1651,6 +1746,7 @@ def main(page: ft.Page):
             kill_dashb_time_thread()
             kill_scanner_thread()
             update_sect_options()
+            update_subj_options()
             
             current_page.content = page_4
             clear_filters()

@@ -255,22 +255,31 @@ def get_sections(instructor_id: str):
     finally: 
         conn.close()
 
-# specific to the block/section only
-def get_subjects(instructor_id: str, block_id: int):
+# specific to the instructor only
+def get_subjects(instructor_id: str, block_id: int = None):
     conn = get_connection()
     if not conn:
         return None
     
     try:
+        filters = ["c.instructor_id = %s"]
+        params = [instructor_id]
+        
+        if block_id:
+            filters.append("c.block_id = %s")
+            params.append(block_id)
+            
+        
+        where = " AND ".join(filters)
+        
         curs = conn.cursor()
 
-        curs.execute("""
+        curs.execute(f"""
                 SELECT DISTINCT c.subject_id
                 FROM class c
-                WHERE c.instructor_id = %s
-                    AND c.block_id = %s
+                WHERE {where} 
             """,
-            (instructor_id, block_id)
+            params
         )
         rows = curs.fetchall()
 
