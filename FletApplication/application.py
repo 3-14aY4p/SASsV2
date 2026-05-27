@@ -380,15 +380,7 @@ def main(page: ft.Page):
         b_id = metrics_details['b_id']
         subj = metrics_details['subj']
 
-        if not b_id:
-            return
-
-        c_id = db.get_class_id(current_u_id, subj, b_id) if subj else None
-
-        data = db.get_session_analytics(
-            c_id, date.today(), session_details['fin'],
-            subject_id=subj, block_id=b_id
-        ) if c_id else None
+        data = db.get_session_analytics(subject_id=subj, block_id=b_id)
 
         # if there's nothing then shows hardcoded text
         if not data:
@@ -409,12 +401,6 @@ def main(page: ft.Page):
             metrics_cards_ui_tct[0].value = f"{data['on_time']} out of {total}"
             metrics_cards_ui_tct[1].value = f"{data['late']} out of {total}"
             metrics_cards_ui_tct[2].value = f"{data['absent']} out of {total}"
-
-        # update the cards
-        for p in metrics_cards_ui_pct:
-            p.update()
-        for t in metrics_cards_ui_tct:
-            t.update()
                 
     
     #* PAGE 2 COMPONENTS
@@ -1231,7 +1217,22 @@ def main(page: ft.Page):
                     ),
                 ft.Row([
                         metrics_sect_dropdown,
-                        metrics_subj_dropdown,
+                        ft.Row([
+                                metrics_subj_dropdown,
+                                ft.IconButton(
+                                        icon = ft.Icons.CLEAR,
+                                        align = ft.Alignment.CENTER_RIGHT,
+                                        style = ft.ButtonStyle(
+                                                bgcolor = ft.Colors.SURFACE,
+                                                elevation=30,
+                                            ),
+                                        on_click=lambda e: (
+                                            setattr(metrics_sect_dropdown.content, "value", None),
+                                            setattr(metrics_subj_dropdown.content, "value", None),
+                                        )
+                                    )
+                                ]
+                            )
                         ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN
                     ), 
                 ft.Row([
