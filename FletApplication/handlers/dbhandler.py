@@ -41,7 +41,7 @@ def get_connection():
             host="localhost",
             user="Admin-110",
             password="attendance",
-            database="db_smartattendance",
+            database="db_SASs",
         )
 
         if conn.is_connected():
@@ -655,6 +655,7 @@ def get_session_analytics(class_id: int, session_date: date, session_end: time):
         # absent = enrolled but no record
         counts['absent'] = max(0, total - counts['on time'] - counts['late'])
 
+        # calculating for %
         ontime_pct = round(counts['on time'] / total * 100, 1) if total else 0.0
         late_pct   = round(counts['late']    / total * 100, 1) if total else 0.0
         absent_pct = round(counts['absent']  / total * 100, 1) if total else 0.0
