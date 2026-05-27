@@ -354,7 +354,7 @@ def get_day_schedules(instructor_id: str, subject_id: str, block_id: int):
                     AND c.subject_id = %s
                     AND b.block_id = %s
             """,
-            ("wednesday", instructor_id, subject_id, block_id)    # FIXME: Revert to today_str after debug
+            (today_str, instructor_id, subject_id, block_id)
         )
         rows = curs.fetchall()
 
@@ -613,18 +613,98 @@ def get_session_log(class_id: int, session_date: date, session_end: time):
         conn.close()
 
 
-# TODO: retrieve data regarding students performance (you can shorten this into 1-2 functions)
-def get_all_students_in_class():
-    pass
+# get all students in a class and their attendance status 
+def get_all_students_in_class(class_id: int):
+    conn = get_connection()
+    if not conn:
+        return None
+    
+    try:
+        curs = conn.cursor()
 
-def get_present_students_in_class():
-    pass
+        curs.execute("""
+                SELECT s.student_id,
+                    CONCAT_WS(' ', s.first_name, s.middle_name, s.last_name) AS student_name
+                FROM enrollment e
+                INNER JOIN student s ON e.student_id = s.student_id
+                INNER JOIN class c ON e.block_id = c.block_id
+                WHERE c.class_id = %s
+                ORDER BY s.last_name ASC
+            """,
+            (class_id,)
+        )
+        recs = curs.fetchall()
+        
+        if not recs:
+            return None
 
-def get_late_students_in_class():
-    pass
+        cols = [column[0] for column in curs.description]
+        rows = [dict(zip(cols, row)) for row in recs]
 
-def get_absent_students_in_class():
-    pass
+        return rows
+
+    except mysql.connector.Error as e:
+        print(f"ERR: {e}")
+        return None
+
+    finally: 
+        conn.close()
+
+# combined present, late, and absent students
+def get_students_of_status(class_id: int, session_date: date = datetime.today().date(), status: str = None):
+    conn = get_connection()
+    if not conn:
+        return None
+    
+    try:
+        curs = conn.cursor()
+
+        if status:
+            curs.execute("""
+                    SELECT s.student_id,
+                        CONCAT_WS(' ', s.first_name, s.middle_name, s.last_name) AS student_name
+                    FROM attendance a
+                    INNER JOIN student s ON a.student_id = s.student_id
+                    WHERE a.class_id = %s
+                        AND a.date = %s
+                        AND a.status = %s
+                    ORDER BY s.last_name ASC
+                """,
+                (class_id, session_date, status)
+            )
+        else:
+            # logic here is to get all students that doesn't have an attendance record (or I guess, absent?)
+            curs.execute("""
+                    SELECT s.student_id,
+                        CONCAT_WS(' ', s.first_name, s.middle_name, s.last_name) AS student_name
+                    FROM enrollment e
+                    INNER JOIN student s ON e.student_id = s.student_id
+                    INNER JOIN class c ON e.block_id = c.block_id
+                    WHERE c.class_id = %s
+                        AND s.student_id NOT IN (
+                            SELECT student_id FROM attendance
+                            WHERE class_id = %s
+                                AND date = %s
+                                AND status IN ('on time', 'late')
+                        )
+                    ORDER BY s.last_name ASC
+                """,
+                (class_id, class_id, session_date)
+            )
+
+        value = curs.fetchall()
+
+        if not value:
+            return None
+        
+        return value
+
+    except mysql.connector.Error as e:
+        print(f"ERR: {e}")
+        return None
+
+    finally: 
+        conn.close() 
 
 
 #* FILE EXPORT

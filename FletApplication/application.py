@@ -1,7 +1,6 @@
 # Module/Library imports
 import threading
 import time as t
-import os
 from datetime import date
 from datetime import time
 from datetime import datetime
@@ -121,6 +120,7 @@ def main(page: ft.Page):
         
         update_user_details()
         update_recent_activity()
+        update_metrics_card()
         update_day_schedule()
         start_dashb_time_thread()
         
@@ -183,6 +183,13 @@ def main(page: ft.Page):
                 color=ft.Colors.ON_SURFACE_VARIANT
             )
         )
+
+    metrics_cards_ui = [
+            ft.Text(),
+            ft.Text(),
+            ft.Text(),
+            ft.Text(),
+        ]
     
     db_session_details = [
         ft.Text(value="No active session",
@@ -272,6 +279,27 @@ def main(page: ft.Page):
                     day_schedule_column.controls.append(
                             ft.Text(value="+ You have no schedule lined up for today.")
                         )
+                
+    # TODO: FInish this for later
+    def update_metrics_card():
+        today = datetime.today().date()
+        
+        if all(session_details.values()):
+            all_students = db.get_all_students_in_class(session_details['c_id'])
+            on_time_students = db.get_students_of_status(session_details['c_id'], today, 'on time')
+            late_students = db.get_students_of_status(session_details['c_id'], today, 'late')
+            absent_students = db.get_students_of_status(session_details['c_id'], today,)
+            
+            metrics_cards_ui[0].value = f"{len(all_students)}"
+            
+            if on_time_students:
+                metrics_cards_ui[1].value = f"{len(on_time_students)} out of {len(all_students)}"
+                
+            if late_students:
+                metrics_cards_ui[2].value = f"{len(late_students)} out of {len(all_students)}"
+            
+            if absent_students:
+                metrics_cards_ui[3].value = f"{len(absent_students)} out of {len(all_students)}"
                 
     
     #* PAGE 2 COMPONENTS
@@ -715,7 +743,7 @@ def main(page: ft.Page):
             )
         )
     nsession_timeslot_select = ft.Container(content=nsession_timeslot_dropdown)
-
+   
     def update_sect_options():
         section_options.clear()
         
@@ -1046,30 +1074,71 @@ def main(page: ft.Page):
                     ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN
                 ),
                 ft.Row([
-                        ft.Container(
-                                align=ft.Alignment.TOP_CENTER,
-                                bgcolor=ft.Colors.SURFACE_CONTAINER,
-                                width=280, height= 200,
-                                border_radius=20,
-                            ),
-                        ft.Container(
-                                align=ft.Alignment.TOP_CENTER,
-                                bgcolor=ft.Colors.SURFACE_CONTAINER,
-                                width=280, height= 200,
-                                border_radius=20,
-                            ),
-                        ft.Container(
-                                align=ft.Alignment.TOP_CENTER,
-                                bgcolor=ft.Colors.SURFACE_CONTAINER,
-                                width=280, height= 200,
-                                border_radius=20,
-                            ),
-                        ft.Container(
-                                align=ft.Alignment.TOP_CENTER,
-                                bgcolor=ft.Colors.SURFACE_CONTAINER,
-                                width=280, height= 200,
-                                border_radius=20,
-                            ),
+                    ft.Container(
+                            align=ft.Alignment.TOP_CENTER,
+                            # bgcolor=ft.Colors.SURFACE_CONTAINER_LOW,
+                            width=240, height= 200,
+                            # border_radius=5,
+                            content= ft.Column(
+                                        expand=True, # margin=10,
+                                        controls=[
+                                            filter_sect_dropdown,   # TODO: Change to respective filters
+                                            filter_subj_dropdown
+                                        ]
+                                    ),
+                                ),
+                    ft.Container(   # TODO: Update metrics cards aesthetics
+                            align=ft.Alignment.TOP_CENTER,
+                            bgcolor=ft.Colors.SURFACE_CONTAINER,
+                            width=280, height= 200,
+                            border_radius=20,
+                            content= ft.Column(
+                                        expand=True, margin=20,
+                                        controls=[
+                                            ft.Text("TOTAL STUDENTS", size=18),
+                                            metrics_cards_ui[0],
+                                        ]
+                                    ),
+                                ),
+                    ft.Container(
+                            align=ft.Alignment.TOP_CENTER,
+                            bgcolor=ft.Colors.SURFACE_CONTAINER,
+                            width=280, height= 200,
+                            border_radius=20,
+                            content=ft.Column(
+                                        expand=True, margin=20,
+                                        controls=[
+                                            ft.Text("TOTAL ON TIME", size=18),
+                                            metrics_cards_ui[1],
+                                        ]
+                                    ),
+                                ),
+                    ft.Container(
+                            align=ft.Alignment.TOP_CENTER,
+                            bgcolor=ft.Colors.SURFACE_CONTAINER,
+                            width=280, height= 200,
+                            border_radius=20,
+                            content=ft.Column(
+                                        expand=True, margin=20,
+                                        controls=[
+                                            ft.Text("TOTAL LATE", size=18),
+                                            metrics_cards_ui[2],
+                                        ]
+                                    ),
+                                ),
+                    ft.Container(
+                            align=ft.Alignment.TOP_CENTER,
+                            bgcolor=ft.Colors.SURFACE_CONTAINER,
+                            width=280, height= 200,
+                            border_radius=20,
+                            content=ft.Column(
+                                        expand=True, margin=20,
+                                        controls=[
+                                            ft.Text("TOTAL ABSENT", size=18),
+                                            metrics_cards_ui[3],
+                                        ]
+                                    ),
+                                ),
                     ], scroll=ft.ScrollMode.AUTO, spacing=20
                 ),
                 ft.Divider(),
@@ -1421,11 +1490,10 @@ def main(page: ft.Page):
         )
     )
     
-    # TODO: Expanded session analytics page
     
     
 
-     #* THREADING FUNCTIONS
+    #* THREADING FUNCTIONS
 
     # For updating date and time in dashboard
     def update_time(stop_event: threading.Event):
@@ -1491,6 +1559,7 @@ def main(page: ft.Page):
             start_dashb_time_thread()
             update_cam_status()
             update_recent_activity()
+            update_metrics_card()
             kill_scanner_thread()
             
             current_page.content = page_1
