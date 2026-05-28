@@ -145,7 +145,7 @@ def main(page: ft.Page):
         
         clear_metrics_card()
         update_metrics_card()
-    
+        
         current_navi.content = None
         current_page.content = page_0
         
@@ -403,6 +403,8 @@ def main(page: ft.Page):
         if subj is not None or b_id is not None:
             data = db.get_session_analytics(subject_id=subj, block_id=b_id, instructor_id=current_u_id)
 
+        print(f"DEBUG: >>> b_id={b_id!r}, subj={subj!r}, u_id={current_u_id!r}, data={data}")
+        
         if not data:
             clear_metrics_card()
         else:
@@ -752,8 +754,9 @@ def main(page: ft.Page):
         selected_session = class_data
         
         dt_session_log.rows.clear()
-        
-        analytics = db.get_session_analytics(class_data['c_id'], class_data['date'], class_data['sched_fin'])
+
+        analytics = db.get_session_analytics(class_data['c_id'], class_data['date'], class_data['sched_fin'],
+                                             instructor_id=current_u_id)
         
         ot_pct = f"{analytics['on_time_pct']}%"
         lt_pct = f"{analytics['late_pct']}%"

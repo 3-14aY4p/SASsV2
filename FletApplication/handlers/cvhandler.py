@@ -6,6 +6,8 @@ import cv2
 import pytesseract
 
 
+pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+
 # color tuples for the roi rect
 color_red = (0, 0, 255)
 color_grn = (0, 255, 0)

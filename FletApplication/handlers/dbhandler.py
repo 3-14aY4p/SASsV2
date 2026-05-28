@@ -39,8 +39,8 @@ def get_connection():
     try:
         conn = mysql.connector.connect(
             host="localhost",
-            user="Admin-110",
-            password="attendance",
+            user="root",
+            password="",
             database="db_SASs",
         )
 
