@@ -754,13 +754,10 @@ def get_students_of_status(class_id: int, session_date: date = datetime.today().
         conn.close() 
 
 # full analytics for a specific session — used for the expanded view and export
-def get_session_analytics(class_id: int = None, session_date: date = None, session_end: time = None,
+def get_session_analytics(class_id: int = None, session_date: date = None, session_end: time = None, 
                           subject_id: str = None, block_id: int = None, instructor_id: str = None):
     conn = get_connection()
     if not conn:
-        return None
-
-    if instructor_id is None:
         return None
 
     try:
@@ -781,8 +778,7 @@ def get_session_analytics(class_id: int = None, session_date: date = None, sessi
                    AND a.session_end = %s
                    AND a.student_id = e.student_id
                 WHERE c.class_id = %s
-                  AND c.instructor_id = %s
-            """, (session_date, session_end, class_id, instructor_id))
+            """, (session_date, session_end, class_id))
 
             row = curs.fetchone()
 
